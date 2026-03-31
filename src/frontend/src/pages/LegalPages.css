@@ -1,0 +1,97 @@
+/* Legal Pages - Instagram style */
+.legal-page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 0;
+}
+
+.legal-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px;
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .legal-container {
+    padding: 16px;
+  }
+}
+
+.back-link {
+  display: inline-block;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.legal-container h1 {
+  font-size: 20px;
+  color: var(--text);
+  margin: 0 0 4px 0;
+  font-weight: 700;
+}
+
+.legal-container .last-updated {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 0 20px 0;
+}
+
+.legal-container section {
+  margin-bottom: 20px;
+}
+
+.legal-container h2 {
+  font-size: 14px;
+  color: var(--text);
+  margin: 0 0 8px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.legal-container h3 {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 12px 0 6px 0;
+  font-weight: 600;
+}
+
+.legal-container p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+}
+
+.legal-container a {
+  color: var(--accent);
+}
+
+.cookie-detail-table {
+  overflow-x: auto;
+  margin: 8px 0 12px 0;
+}
+
+.cookie-detail-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.cookie-detail-table th {
+  text-align: left;
+  padding: 6px 8px;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.cookie-detail-table td {
+  padding: 6px 8px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}

@@ -1,0 +1,369 @@
+/* Settings - Instagram style */
+.settings-page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 0 0 32px;
+}
+
+.settings-container {
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.settings-container h1 {
+  font-size: 18px;
+  color: var(--text);
+  margin: 0;
+  font-weight: 700;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.back-link {
+  display: inline-block;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 12px 16px 0;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.settings-tabs button {
+  flex: 1;
+  padding: 12px 8px;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 1px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+}
+
+.settings-tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--text);
+}
+
+.settings-content {
+  padding: 0 16px;
+}
+
+.settings-section h2 {
+  font-size: 14px;
+  color: var(--text);
+  margin: 16px 0 12px;
+  font-weight: 700;
+}
+
+.settings-section h3 {
+  font-size: 13px;
+  color: var(--text);
+  margin: 0 0 6px 0;
+  font-weight: 600;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  box-sizing: border-box;
+  background: var(--bg-input);
+  color: var(--text);
+  outline: none;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: var(--text-muted);
+}
+
+.form-group textarea {
+  resize: vertical;
+}
+
+.avatar-placeholder {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+
+.btn-save-settings,
+.btn-change {
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.btn-save-settings {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-change {
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* Reuse toggle from cookie prefs */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.switch input { opacity: 0; width: 0; height: 0; }
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: var(--border);
+  transition: 0.2s;
+  border-radius: 22px;
+}
+
+.slider::before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-muted);
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+.switch input:checked + .slider {
+  background-color: var(--accent);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+  background-color: white;
+}
+
+.privacy-block {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.privacy-block select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 13px;
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.gdpr-section {
+  border-bottom: none;
+}
+
+.gdpr-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.gdpr-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gdpr-action-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.gdpr-action-card.danger {
+  border-color: rgba(237, 73, 86, 0.2);
+}
+
+.gdpr-action-card h4 {
+  font-size: 13px;
+  color: var(--text);
+  margin: 0 0 4px 0;
+  font-weight: 600;
+}
+
+.gdpr-action-card p {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 10px 0;
+}
+
+.btn-export {
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-export:disabled {
+  opacity: 0.4;
+}
+
+.btn-delete {
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(237, 73, 86, 0.3);
+  background: transparent;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-delete:hover {
+  background: rgba(237, 73, 86, 0.08);
+}
+
+.delete-confirm {
+  margin-top: 10px;
+}
+
+.delete-warning {
+  font-size: 12px;
+  color: var(--danger);
+  font-weight: 600;
+  margin-bottom: 8px !important;
+}
+
+.delete-confirm input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  font-size: 13px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+}
+
+.delete-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn-delete-final {
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--danger);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-delete-final:disabled {
+  opacity: 0.3;
+}
+
+.delete-success {
+  color: var(--success);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.info-row span:first-child {
+  color: var(--text-secondary);
+}
+
+.info-row span:last-child {
+  color: var(--text);
+}
+
+.info-links {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.info-links a {
+  color: var(--accent);
+  font-size: 13px;
+}

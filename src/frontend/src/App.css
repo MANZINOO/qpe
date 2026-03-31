@@ -1,0 +1,9 @@
+/* qpe - App shell (responsive full-width) */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  width: 100%;
+  position: relative;
+}

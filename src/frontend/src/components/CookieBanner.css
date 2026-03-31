@@ -1,0 +1,138 @@
+/* Cookie Banner - Instagram style */
+.cookie-banner-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+}
+
+.cookie-banner {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  width: 100%;
+  max-width: 480px;
+  padding: 16px;
+}
+
+.cookie-banner-header h3 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cookie-banner-body p {
+  margin: 0 0 14px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.cookie-details {
+  margin-bottom: 12px;
+}
+
+.cookie-category {
+  background: var(--bg-input);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.cookie-category-header label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.cookie-category-header input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.cookie-label {
+  flex: 1;
+}
+
+.cookie-badge.always-on {
+  font-size: 10px;
+  background: rgba(0, 149, 246, 0.1);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.cookie-desc {
+  margin: 6px 0 0 24px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.cookie-banner-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cookie-banner-actions button {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border) !important;
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+}
+
+.btn-tertiary {
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.btn-tertiary:hover {
+  background: var(--bg-hover);
+}
+
+.cookie-banner-footer {
+  text-align: center;
+  font-size: 11px;
+}
+
+.cookie-banner-footer a {
+  color: var(--accent);
+}
+
+.cookie-banner-footer .separator {
+  margin: 0 6px;
+  color: var(--text-muted);
+}

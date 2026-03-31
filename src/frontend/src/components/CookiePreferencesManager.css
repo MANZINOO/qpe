@@ -1,0 +1,192 @@
+/* Cookie Preferences - Instagram style */
+.cookie-prefs-container {
+  padding: 20px;
+}
+
+.cookie-prefs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.cookie-prefs-header h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+}
+
+.last-updated {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 0 12px 0;
+}
+
+.cookie-prefs-intro {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.cookie-pref-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-input);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+}
+
+.cookie-pref-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cookie-pref-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.cookie-pref-title span:first-child {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.badge-always {
+  font-size: 10px;
+  background: rgba(0, 149, 246, 0.1);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.cookie-pref-info p {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin: 0 0 8px 0;
+}
+
+.cookie-table {
+  width: 100%;
+  font-size: 10px;
+  border-collapse: collapse;
+}
+
+.cookie-table th {
+  text-align: left;
+  padding: 3px 6px;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.cookie-table td {
+  padding: 3px 6px;
+  color: var(--text-secondary);
+}
+
+.cookie-pref-toggle {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+}
+
+/* Toggle switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border);
+  transition: 0.2s;
+  border-radius: 22px;
+}
+
+.slider::before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--text-muted);
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+.switch input:checked + .slider {
+  background-color: var(--accent);
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+  background-color: white;
+}
+
+.cookie-prefs-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.btn-revoke {
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(237, 73, 86, 0.2);
+  background: transparent;
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-revoke:hover {
+  background: rgba(237, 73, 86, 0.08);
+}
+
+.btn-save {
+  padding: 8px 20px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-save:hover {
+  background: var(--accent-hover);
+}
