@@ -1,0 +1,234 @@
+/* UserProfile - profilo pubblico */
+.userprofile-page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.userprofile-loading,
+.userprofile-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  color: var(--text-secondary);
+  gap: 16px;
+  font-size: 15px;
+}
+
+/* Header */
+.userprofile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 100;
+}
+
+.userprofile-back {
+  color: var(--text);
+  display: flex;
+}
+
+.userprofile-header-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Info utente */
+.userprofile-info {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .userprofile-info {
+    padding: 20px 16px;
+  }
+}
+
+.userprofile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--bg-input);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  border: 2px solid var(--border);
+  overflow: hidden;
+}
+
+.userprofile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.userprofile-avatar span {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.userprofile-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.userprofile-bio {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+/* Stats */
+.userprofile-stats {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 20px;
+}
+
+.userprofile-stat {
+  text-align: center;
+}
+
+.userprofile-stat-num {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.userprofile-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Follow button */
+.userprofile-action {
+  margin-bottom: 16px;
+}
+
+.userprofile-btn {
+  display: inline-block;
+  padding: 9px 32px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.userprofile-btn.follow {
+  background: var(--accent);
+  color: white;
+}
+
+.userprofile-btn.follow:hover {
+  background: var(--accent-hover);
+  color: white;
+}
+
+.userprofile-btn.following {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.userprofile-btn.following:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.userprofile-btn.edit {
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.userprofile-btn.edit:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.userprofile-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Categories */
+.userprofile-categories {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.userprofile-cat {
+  padding: 4px 12px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Sondaggi */
+.userprofile-polls-section {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 24px 40px;
+}
+
+@media (max-width: 600px) {
+  .userprofile-polls-section {
+    padding: 0 12px 32px;
+  }
+}
+
+.userprofile-polls-section h2 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.userprofile-no-polls {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 24px 0;
+}
+
+.userprofile-polls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .userprofile-polls-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}

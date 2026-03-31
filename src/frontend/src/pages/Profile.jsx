@@ -1,10 +1,30 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
 import './Auth.css';
 
 function Profile() {
   const { user, userProfile, logout } = useAuth();
   const navigate = useNavigate();
+  const [pollCount, setPollCount] = useState(0);
+
+  useEffect(() => {
+    if (user?.uid) {
+      loadPollCount();
+    }
+  }, [user?.uid]);
+
+  async function loadPollCount() {
+    try {
+      const q = query(collection(db, 'polls'), where('authorId', '==', user.uid));
+      const snap = await getDocs(q);
+      setPollCount(snap.size);
+    } catch (err) {
+      console.warn('[QPe] Errore conteggio poll:', err.message);
+    }
+  }
 
   async function handleLogout() {
     await logout();
@@ -55,15 +75,15 @@ function Profile() {
         <div className="profile-card">
           <div className="profile-stats">
             <div className="profile-stat">
-              <span className="profile-stat-number">0</span>
+              <span className="profile-stat-number">{pollCount}</span>
               <span className="profile-stat-label">Sondaggi</span>
             </div>
             <div className="profile-stat">
-              <span className="profile-stat-number">0</span>
+              <span className="profile-stat-number">{(userProfile?.followers || []).length}</span>
               <span className="profile-stat-label">Follower</span>
             </div>
             <div className="profile-stat">
-              <span className="profile-stat-number">0</span>
+              <span className="profile-stat-number">{(userProfile?.following || []).length}</span>
               <span className="profile-stat-label">Seguiti</span>
             </div>
           </div>

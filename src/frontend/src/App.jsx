@@ -13,6 +13,7 @@ import CookiePolicy from './pages/CookiePolicy';
 import Settings from './pages/Settings';
 import CreatePoll from './pages/CreatePoll';
 import PollView from './pages/PollView';
+import UserProfile from './pages/UserProfile';
 import './App.css';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/create" element={<CreatePoll />} />
             <Route path="/poll/:id" element={<PollView />} />
+            <Route path="/u/:uid" element={<UserProfile />} />
           </Routes>
           <Footer />
           <CookieBanner />

@@ -7,7 +7,7 @@ import {
   signOut,
   updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
 
 const AuthContext = createContext(null);
@@ -217,6 +217,58 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Segui un utente
+  async function followUser(targetUid) {
+    if (!user || user.uid === targetUid) return;
+    try {
+      // Aggiungi targetUid ai miei "following"
+      await updateDoc(doc(db, 'users', user.uid), {
+        following: arrayUnion(targetUid)
+      });
+      // Aggiungi il mio uid ai "followers" del target
+      await updateDoc(doc(db, 'users', targetUid), {
+        followers: arrayUnion(user.uid)
+      });
+      // Aggiorna profilo locale
+      setUserProfile(prev => ({
+        ...prev,
+        following: [...(prev.following || []), targetUid]
+      }));
+    } catch (err) {
+      console.warn('[QPe] Errore follow:', err.message);
+    }
+  }
+
+  // Smetti di seguire un utente
+  async function unfollowUser(targetUid) {
+    if (!user || user.uid === targetUid) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        following: arrayRemove(targetUid)
+      });
+      await updateDoc(doc(db, 'users', targetUid), {
+        followers: arrayRemove(user.uid)
+      });
+      setUserProfile(prev => ({
+        ...prev,
+        following: (prev.following || []).filter(uid => uid !== targetUid)
+      }));
+    } catch (err) {
+      console.warn('[QPe] Errore unfollow:', err.message);
+    }
+  }
+
+  // Ricarica profilo dal server
+  async function refreshProfile() {
+    if (!user) return;
+    try {
+      const profile = await getUserProfile(user.uid);
+      if (profile) setUserProfile(profile);
+    } catch (err) {
+      console.warn('[QPe] Errore refresh profilo:', err.message);
+    }
+  }
+
   const value = {
     user,
     userProfile,
@@ -226,7 +278,10 @@ export function AuthProvider({ children }) {
     loginWithGoogle,
     logout,
     updateUserProfile,
-    getUserProfile
+    getUserProfile,
+    followUser,
+    unfollowUser,
+    refreshProfile
   };
 
   return (

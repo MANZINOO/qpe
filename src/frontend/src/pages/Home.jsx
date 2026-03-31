@@ -11,9 +11,11 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('tutti'); // tutti | seguiti
 
+  // Ricarica quando cambia tab O quando following cambia (dopo un follow/unfollow)
+  const followingKey = userProfile?.following?.join(',') || '';
   useEffect(() => {
     loadPolls();
-  }, [tab]);
+  }, [tab, followingKey]);
 
   async function loadPolls() {
     setLoading(true);

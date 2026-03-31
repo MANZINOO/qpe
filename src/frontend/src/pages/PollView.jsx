@@ -191,7 +191,7 @@ function PollView() {
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </Link>
-        <div className="pollview-author">
+        <Link to={`/u/${poll.authorId}`} className="pollview-author">
           <div className="pollview-author-avatar">
             {poll.authorAvatar ? (
               <img src={poll.authorAvatar} alt="" />
@@ -200,7 +200,7 @@ function PollView() {
             )}
           </div>
           <span className="pollview-author-name">@{poll.authorUsername}</span>
-        </div>
+        </Link>
         <div className="pollview-category">{poll.category}</div>
       </div>
 
