@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import './CreatePoll.css';
 
@@ -65,12 +65,13 @@ function CreatePoll() {
         active: true
       };
 
-      const docRef = await addDoc(collection(db, 'polls'), pollData);
-      navigate(`/poll/${docRef.id}`);
+      // Aspetta che Firestore salvi il documento, poi naviga
+      const newDocRef = doc(collection(db, 'polls'));
+      await setDoc(newDocRef, pollData);
+      navigate(`/poll/${newDocRef.id}`);
     } catch (err) {
       console.error('[QPe] Errore creazione poll:', err);
       setError('Errore nella creazione. Riprova.');
-    } finally {
       setLoading(false);
     }
   }

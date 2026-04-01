@@ -27,13 +27,16 @@ export function AuthProvider({ children }) {
 
   // Ascolta i cambiamenti di stato auth
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
+      // Imposta loading=false subito: sappiamo già se l'utente è loggato o no
+      // Il profilo Firestore si carica in background (non blocca il render)
+      setLoading(false);
+
       if (firebaseUser) {
-        try {
-          const profile = await getUserProfile(firebaseUser.uid);
+        // Carica il profilo in background senza bloccare il rendering
+        getUserProfile(firebaseUser.uid).then(async (profile) => {
           if (!profile) {
-            // Utente esiste su Auth ma non su Firestore - crea profilo
             await createUserProfile(firebaseUser.uid, {
               username: firebaseUser.displayName || firebaseUser.email.split('@')[0],
               email: firebaseUser.email,
@@ -47,9 +50,8 @@ export function AuthProvider({ children }) {
           } else {
             setUserProfile(profile);
           }
-        } catch (err) {
+        }).catch((err) => {
           console.warn('[QPe] Errore caricamento profilo:', err.message);
-          // Crea profilo locale temporaneo se Firestore non risponde
           setUserProfile({
             uid: firebaseUser.uid,
             username: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'utente',
@@ -59,11 +61,10 @@ export function AuthProvider({ children }) {
             categories: [],
             createdAt: new Date().toISOString()
           });
-        }
+        });
       } else {
         setUserProfile(null);
       }
-      setLoading(false);
     });
     return unsubscribe;
   }, []);
@@ -111,70 +112,15 @@ export function AuthProvider({ children }) {
 
   // Login con email e password
   async function login(email, password) {
+    // Solo l'operazione Auth — il profilo viene caricato da onAuthStateChanged in background
     const result = await signInWithEmailAndPassword(auth, email, password);
-
-    try {
-      let profile = await getUserProfile(result.user.uid);
-      if (!profile) {
-        // Profilo mancante su Firestore - crealo
-        await createUserProfile(result.user.uid, {
-          username: result.user.displayName || email.split('@')[0],
-          email,
-          bio: '',
-          avatar: result.user.photoURL || '',
-          categories: [],
-          createdAt: new Date().toISOString()
-        });
-        profile = await getUserProfile(result.user.uid);
-      }
-      setUserProfile(profile);
-    } catch (err) {
-      console.warn('[QPe] Errore caricamento profilo al login:', err.message);
-      setUserProfile({
-        uid: result.user.uid,
-        username: result.user.displayName || email.split('@')[0],
-        email,
-        bio: '',
-        avatar: result.user.photoURL || '',
-        categories: [],
-        createdAt: new Date().toISOString()
-      });
-    }
-
     return result.user;
   }
 
   // Login con Google
   async function loginWithGoogle() {
+    // Solo l'operazione Auth — il profilo viene caricato da onAuthStateChanged in background
     const result = await signInWithPopup(auth, googleProvider);
-
-    try {
-      let profile = await getUserProfile(result.user.uid);
-      if (!profile) {
-        await createUserProfile(result.user.uid, {
-          username: result.user.displayName || 'utente',
-          email: result.user.email,
-          bio: '',
-          avatar: result.user.photoURL || '',
-          categories: [],
-          createdAt: new Date().toISOString()
-        });
-        profile = await getUserProfile(result.user.uid);
-      }
-      setUserProfile(profile);
-    } catch (err) {
-      console.warn('[QPe] Errore profilo Google login:', err.message);
-      setUserProfile({
-        uid: result.user.uid,
-        username: result.user.displayName || 'utente',
-        email: result.user.email || '',
-        bio: '',
-        avatar: result.user.photoURL || '',
-        categories: [],
-        createdAt: new Date().toISOString()
-      });
-    }
-
     return result.user;
   }
 
@@ -220,42 +166,34 @@ export function AuthProvider({ children }) {
   // Segui un utente
   async function followUser(targetUid) {
     if (!user || user.uid === targetUid) return;
-    try {
-      // Aggiungi targetUid ai miei "following"
-      await updateDoc(doc(db, 'users', user.uid), {
-        following: arrayUnion(targetUid)
-      });
-      // Aggiungi il mio uid ai "followers" del target
-      await updateDoc(doc(db, 'users', targetUid), {
-        followers: arrayUnion(user.uid)
-      });
-      // Aggiorna profilo locale
-      setUserProfile(prev => ({
-        ...prev,
-        following: [...(prev.following || []), targetUid]
-      }));
-    } catch (err) {
-      console.warn('[QPe] Errore follow:', err.message);
-    }
+    // Senza try/catch: l'errore si propaga a chi chiama, così la UI non aggiorna se Firestore fallisce
+    await updateDoc(doc(db, 'users', user.uid), {
+      following: arrayUnion(targetUid)
+    });
+    await updateDoc(doc(db, 'users', targetUid), {
+      followers: arrayUnion(user.uid)
+    });
+    setUserProfile(prev => {
+      if (!prev) return prev;
+      const following = prev.following || [];
+      if (following.includes(targetUid)) return prev;
+      return { ...prev, following: [...following, targetUid] };
+    });
   }
 
   // Smetti di seguire un utente
   async function unfollowUser(targetUid) {
     if (!user || user.uid === targetUid) return;
-    try {
-      await updateDoc(doc(db, 'users', user.uid), {
-        following: arrayRemove(targetUid)
-      });
-      await updateDoc(doc(db, 'users', targetUid), {
-        followers: arrayRemove(user.uid)
-      });
-      setUserProfile(prev => ({
-        ...prev,
-        following: (prev.following || []).filter(uid => uid !== targetUid)
-      }));
-    } catch (err) {
-      console.warn('[QPe] Errore unfollow:', err.message);
-    }
+    await updateDoc(doc(db, 'users', user.uid), {
+      following: arrayRemove(targetUid)
+    });
+    await updateDoc(doc(db, 'users', targetUid), {
+      followers: arrayRemove(user.uid)
+    });
+    setUserProfile(prev => ({
+      ...prev,
+      following: (prev.following || []).filter(f => f !== targetUid)
+    }));
   }
 
   // Ricarica profilo dal server

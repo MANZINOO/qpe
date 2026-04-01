@@ -51,17 +51,18 @@ function UserProfile() {
     try {
       if (isFollowing) {
         await unfollowUser(uid);
-        // Aggiorna contatore locale
         setProfile(prev => ({
           ...prev,
-          followers: (prev.followers || []).filter(id => id !== user.uid)
+          followers: (prev.followers || []).filter(f => f !== user.uid)
         }));
       } else {
         await followUser(uid);
-        setProfile(prev => ({
-          ...prev,
-          followers: [...(prev.followers || []), user.uid]
-        }));
+        setProfile(prev => {
+          const followers = prev.followers || [];
+          // Evita duplicati nel contatore locale
+          if (followers.includes(user.uid)) return prev;
+          return { ...prev, followers: [...followers, user.uid] };
+        });
       }
     } finally {
       setFollowLoading(false);
@@ -143,9 +144,9 @@ function UserProfile() {
             <button
               className={`userprofile-btn ${isFollowing ? 'following' : 'follow'}`}
               onClick={handleFollow}
-              disabled={followLoading}
+              disabled={followLoading || !userProfile}
             >
-              {followLoading ? '...' : isFollowing ? 'Segui già' : 'Segui'}
+              {followLoading || !userProfile ? '...' : isFollowing ? 'Segui già' : 'Segui'}
             </button>
           ) : (
             <Link to="/login" className="userprofile-btn follow">Accedi per seguire</Link>

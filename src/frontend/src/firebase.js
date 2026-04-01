@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,6 +13,19 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Prova ad abilitare la cache locale; se fallisce, usa Firestore standard
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+  });
+  console.log('[QPe] Firestore inizializzato con cache locale');
+} catch (err) {
+  console.warn('[QPe] Cache locale non disponibile, uso Firestore standard:', err.message);
+  db = getFirestore(app);
+}
+
+export { db };
 export const googleProvider = new GoogleAuthProvider();
 export default app;

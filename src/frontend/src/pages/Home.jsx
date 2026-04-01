@@ -7,15 +7,31 @@ import './Home.css';
 
 function Home() {
   const { user, userProfile, loading: authLoading } = useAuth();
-  const [polls, setPolls] = useState([]);
+  const [pollsCache, setPollsCache] = useState({ tutti: null, seguiti: null });
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('tutti'); // tutti | seguiti
 
-  // Ricarica quando cambia tab O quando following cambia (dopo un follow/unfollow)
+  const polls = pollsCache[tab] || [];
+
+  // Per "tutti": carica subito senza aspettare auth
+  // Per "seguiti": aspetta che auth sia pronto e che ci sia un profilo
+  // Usa la cache per non ricaricare se i dati ci sono già
   const followingKey = userProfile?.following?.join(',') || '';
+
+  // Invalida la cache "seguiti" quando cambia la lista following
   useEffect(() => {
-    loadPolls();
-  }, [tab, followingKey]);
+    setPollsCache(prev => ({ ...prev, seguiti: null }));
+  }, [followingKey]);
+
+  useEffect(() => {
+    if (tab === 'tutti') {
+      if (pollsCache.tutti !== null) { setLoading(false); return; }
+      loadPolls();
+    } else if (!authLoading) {
+      if (pollsCache.seguiti !== null) { setLoading(false); return; }
+      loadPolls();
+    }
+  }, [tab, pollsCache.tutti, pollsCache.seguiti, authLoading]);
 
   async function loadPolls() {
     setLoading(true);
@@ -39,11 +55,12 @@ function Home() {
       }
 
       const snapshot = await getDocs(q);
+      console.log(`[QPe] Feed "${tab}": ${snapshot.docs.length} sondaggi trovati`, snapshot.metadata.fromCache ? '(dalla cache)' : '(dal server)');
       const pollsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setPolls(pollsData);
+      setPollsCache(prev => ({ ...prev, [tab]: pollsData }));
     } catch (err) {
-      console.warn('[QPe] Errore caricamento poll:', err.message);
-      setPolls([]);
+      console.error('[QPe] Errore caricamento poll:', err.code, err.message);
+      setPollsCache(prev => ({ ...prev, [tab]: [] }));
     } finally {
       setLoading(false);
     }

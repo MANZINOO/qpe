@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { doc, getDoc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, collection, addDoc, getDocs, orderBy, query, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import './PollView.css';
 
@@ -18,31 +18,40 @@ function PollView() {
   const [liked, setLiked] = useState(false);
   const [error, setError] = useState('');
   const [showStats, setShowStats] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [sendingComment, setSendingComment] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
-  // Ricarica quando cambia id O quando l'utente diventa disponibile
-  // (Firebase Auth è asincrono: user è null al primo render)
+  // Carica il sondaggio UNA sola volta quando cambia l'id
   useEffect(() => {
     loadPoll();
-  }, [id, user?.uid]);
+  }, [id]);
+
+  // Quando l'utente diventa disponibile (auth asincrono), aggiorna lo stato voto/like
+  // senza ricaricare il poll da Firestore
+  useEffect(() => {
+    if (!user || !poll) return;
+    if (poll.voters) {
+      const voterEntry = poll.voters.find(v => v.uid === user.uid);
+      if (voterEntry) {
+        setHasVoted(true);
+        setVotedOption(voterEntry.choice);
+      }
+    }
+    if (poll.likes?.some(l => (typeof l === 'object' ? l.uid : l) === user.uid)) {
+      setLiked(true);
+    }
+  }, [user?.uid, poll]);
 
   async function loadPoll() {
     try {
       const docRef = doc(db, 'polls', id);
       const docSnap = await getDoc(docRef);
+      console.log(`[QPe] PollView ${id}: exists=${docSnap.exists()}`, docSnap.metadata.fromCache ? '(dalla cache)' : '(dal server)');
       if (docSnap.exists()) {
         const data = { id: docSnap.id, ...docSnap.data() };
         setPoll(data);
-
-        if (user && data.voters) {
-          const voterEntry = data.voters.find(v => v.uid === user.uid);
-          if (voterEntry) {
-            setHasVoted(true);
-            setVotedOption(voterEntry.choice);
-          }
-        }
-        if (user && data.likes?.some(l => (typeof l === 'object' ? l.uid : l) === user.uid)) {
-          setLiked(true);
-        }
       } else {
         setError('Sondaggio non trovato');
       }
@@ -149,6 +158,80 @@ function PollView() {
       }
     } catch (err) {
       console.error('[QPe] Errore like:', err);
+    }
+  }
+
+  async function loadComments() {
+    try {
+      const q = query(
+        collection(db, 'polls', id, 'comments'),
+        orderBy('createdAt', 'asc')
+      );
+      const snap = await getDocs(q);
+      setComments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error('[QPe] Errore caricamento commenti:', err);
+    }
+  }
+
+  async function handleSendComment(e) {
+    e.preventDefault();
+    if (!user) { navigate('/login'); return; }
+    if (!commentText.trim()) return;
+
+    setSendingComment(true);
+    const username = userProfile?.username || user.displayName || 'Anonimo';
+    const newComment = {
+      uid: user.uid,
+      username,
+      text: commentText.trim(),
+      likes: [],
+      likesCount: 0,
+      createdAt: serverTimestamp()
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, 'polls', id, 'comments'), newComment);
+      setComments(prev => [...prev, { ...newComment, id: docRef.id, createdAt: new Date() }]);
+      setCommentText('');
+    } catch (err) {
+      console.error('[QPe] Errore invio commento:', err);
+    } finally {
+      setSendingComment(false);
+    }
+  }
+
+  async function handleCommentLike(commentId) {
+    if (!user) { navigate('/login'); return; }
+    const comment = comments.find(c => c.id === commentId);
+    if (comment?.uid === user.uid) return; // non puoi mettere like al tuo commento
+    if (!comment) return;
+
+    const commentRef = doc(db, 'polls', id, 'comments', commentId);
+    const alreadyLiked = (comment.likes || []).includes(user.uid);
+
+    try {
+      if (alreadyLiked) {
+        await updateDoc(commentRef, {
+          likes: arrayRemove(user.uid),
+          likesCount: increment(-1)
+        });
+        setComments(prev => prev.map(c => c.id === commentId
+          ? { ...c, likes: c.likes.filter(u => u !== user.uid), likesCount: (c.likesCount || 1) - 1 }
+          : c
+        ));
+      } else {
+        await updateDoc(commentRef, {
+          likes: arrayUnion(user.uid),
+          likesCount: increment(1)
+        });
+        setComments(prev => prev.map(c => c.id === commentId
+          ? { ...c, likes: [...(c.likes || []), user.uid], likesCount: (c.likesCount || 0) + 1 }
+          : c
+        ));
+      }
+    } catch (err) {
+      console.error('[QPe] Errore like commento:', err);
     }
   }
 
@@ -299,6 +382,20 @@ function PollView() {
           {!isAuthor && <span>{poll.likesCount || 0} like</span>}
         </div>
 
+        {/* Bottone commenti */}
+        <button
+          className={`action-btn ${showComments ? 'active' : ''}`}
+          onClick={() => {
+            if (!showComments && comments.length === 0) loadComments();
+            setShowComments(s => !s);
+          }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <span>{comments.length > 0 ? comments.length : ''}</span>
+        </button>
+
         <button className="action-btn" onClick={() => {
           if (navigator.share) {
             navigator.share({ title: poll.title, url: window.location.href });
@@ -377,6 +474,88 @@ function PollView() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Sezione commenti */}
+      {showComments && (
+        <div className="pollview-comments">
+          <h3 className="comments-title">Commenti {comments.length > 0 && `(${comments.length})`}</h3>
+
+          {/* Form invio commento */}
+          {user ? (
+            <form className="comment-form" onSubmit={handleSendComment}>
+              <div className="comment-input-row">
+                <div className="comment-avatar">{(userProfile?.username || user.displayName || '?')[0].toUpperCase()}</div>
+                <input
+                  className="comment-input"
+                  type="text"
+                  placeholder="Scrivi un commento..."
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  maxLength={300}
+                  disabled={sendingComment}
+                />
+                <button
+                  className="comment-send"
+                  type="submit"
+                  disabled={sendingComment || !commentText.trim()}
+                >
+                  {sendingComment ? '...' : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="comments-login"><Link to="/login">Accedi</Link> per commentare</p>
+          )}
+
+          {/* Lista commenti */}
+          {comments.length === 0 ? (
+            <p className="comments-empty">Nessun commento ancora. Sii il primo!</p>
+          ) : (
+            <ul className="comments-list">
+              {comments.map(comment => {
+                const alreadyLiked = (comment.likes || []).includes(user?.uid);
+                return (
+                  <li key={comment.id} className="comment-item">
+                    <div className="comment-avatar">{(comment.username || '?')[0].toUpperCase()}</div>
+                    <div className="comment-body">
+                      <div className="comment-header">
+                        <span className="comment-username">@{comment.username}</span>
+                        {comment.createdAt?.toDate && (
+                          <span className="comment-time">
+                            {comment.createdAt.toDate().toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                          </span>
+                        )}
+                      </div>
+                      <p className="comment-text">{comment.text}</p>
+                      {comment.uid !== user?.uid && (
+                        <button
+                          className={`comment-like-btn ${alreadyLiked ? 'liked' : ''}`}
+                          onClick={() => handleCommentLike(comment.id)}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={alreadyLiked ? 'var(--danger)' : 'none'} stroke={alreadyLiked ? 'var(--danger)' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                          </svg>
+                          <span>{comment.likesCount || 0}</span>
+                        </button>
+                      )}
+                      {comment.uid === user?.uid && comment.likesCount > 0 && (
+                        <span className="comment-likes-readonly">
+                          ♥ {comment.likesCount}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
       )}
     </div>
