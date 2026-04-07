@@ -1,10 +1,15 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import CookiePreferencesManager from './CookiePreferencesManager';
 import './Footer.css';
 
+const SHOW_ON = ['/login', '/signup', '/settings'];
+
 function Footer() {
+  const { pathname } = useLocation();
   const [showCookiePrefs, setShowCookiePrefs] = useState(false);
+
+  if (!SHOW_ON.some(p => pathname.startsWith(p))) return null;
 
   return (
     <>

@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Utenti ───────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+
+      // Notifiche: solo il proprietario legge/aggiorna/cancella,
+      // ma QUALSIASI utente autenticato può CREARE (per notificare altri)
+      match /notifications/{notifId} {
+        allow read, update, delete: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null;
+      }
+    }
+
+    // ── Sondaggi ─────────────────────────────────────────────────
+    match /polls/{pollId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null && request.auth.uid == resource.data.authorId;
+
+      // Commenti
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null;
+        allow update: if request.auth != null;
+        allow delete: if request.auth != null && request.auth.uid == resource.data.uid;
+
+        // Risposte ai commenti
+        match /replies/{replyId} {
+          allow read: if true;
+          allow create: if request.auth != null;
+          allow delete: if request.auth != null && request.auth.uid == resource.data.uid;
+        }
+      }
+    }
+
+    // ── Conversazioni DM ─────────────────────────────────────────
+    match /conversations/{convId} {
+      allow read, write: if request.auth != null &&
+        (resource == null || request.auth.uid in resource.data.participants);
+
+      match /messages/{msgId} {
+        allow read, write: if request.auth != null &&
+          (resource == null || request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participants);
+      }
+    }
+
+  }
+}

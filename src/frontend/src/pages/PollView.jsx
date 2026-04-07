@@ -1,14 +1,19 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, collection, addDoc, getDocs, orderBy, query, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, increment, collection, addDoc, getDocs, orderBy, query, serverTimestamp, where, limit } from 'firebase/firestore';
 import { db } from '../firebase';
+import { createNotification } from '../utils/notifications';
+import { getConvId } from '../utils/conversations';
+import { useToast } from '../context/ToastContext';
 import './PollView.css';
 
 function PollView() {
   const { id } = useParams();
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
+  const [, setSearchParams] = useSearchParams();
 
   const [poll, setPoll] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,9 +27,33 @@ function PollView() {
   const [commentText, setCommentText] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  // Modale inoltro
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [forwardSearch, setForwardSearch] = useState('');
+  const [forwardUsers, setForwardUsers] = useState([]);
+  const [forwardSearching, setForwardSearching] = useState(false);
+  const forwardInputRef = useRef(null);
+  const viewRecordedRef = useRef(false);
+
+  // Edit / delete poll (autore)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingPoll, setDeletingPoll] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editHashtags, setEditHashtags] = useState([]);
+  const [editTagInput, setEditTagInput] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Risposte ai commenti
+  const [replyingTo, setReplyingTo] = useState(null);   // commentId a cui stai rispondendo
+  const [replyText, setReplyText] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [replies, setReplies] = useState({});            // { [commentId]: Reply[] }
+  const [shownReplies, setShownReplies] = useState(new Set()); // commentId con replies visibili
 
   // Carica il sondaggio UNA sola volta quando cambia l'id
   useEffect(() => {
+    viewRecordedRef.current = false;
     loadPoll();
   }, [id]);
 
@@ -42,7 +71,84 @@ function PollView() {
     if (poll.likes?.some(l => (typeof l === 'object' ? l.uid : l) === user.uid)) {
       setLiked(true);
     }
-  }, [user?.uid, poll]);
+  }, [user?.uid, poll?.id]);
+
+  // Registra la visualizzazione una sola volta per sessione/utente
+  useEffect(() => {
+    if (!user || !poll || viewRecordedRef.current) return;
+    // L'autore del sondaggio non conta come visualizzazione
+    if (user.uid === poll.authorId) return;
+    viewRecordedRef.current = true;
+    // Se l'utente ha già visto questo sondaggio non scrive su Firestore
+    if ((poll.viewedBy || []).includes(user.uid)) return;
+    updateDoc(doc(db, 'polls', id), {
+      viewedBy: arrayUnion(user.uid)
+    }).then(() => {
+      setPoll(prev => prev ? ({
+        ...prev,
+        viewedBy: [...(prev.viewedBy || []), user.uid]
+      }) : prev);
+    }).catch(() => {});
+  }, [user?.uid, poll?.id]);
+
+  // Ricerca utenti nel modale inoltro (prefix matching)
+  useEffect(() => {
+    if (!showForwardModal) return;
+    setTimeout(() => forwardInputRef.current?.focus(), 80);
+  }, [showForwardModal]);
+
+  useEffect(() => {
+    if (!forwardSearch.trim() || forwardSearch.trim().length < 2) {
+      setForwardUsers([]);
+      return;
+    }
+    const t = forwardSearch.trim();
+    setForwardSearching(true);
+    const termLower = t.toLowerCase();
+    const termCap = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+
+    const makeQ = (startTerm) => query(
+      collection(db, 'users'),
+      where('username', '>=', startTerm),
+      where('username', '<=', startTerm + '\uf8ff'),
+      orderBy('username'),
+      limit(8)
+    );
+
+    Promise.all([getDocs(makeQ(termLower)), getDocs(makeQ(termCap))])
+      .then(([s1, s2]) => {
+        const map = new Map();
+        [...s1.docs, ...s2.docs].forEach(d => {
+          if (d.id !== user?.uid) map.set(d.id, { uid: d.id, ...d.data() });
+        });
+        setForwardUsers([...map.values()].slice(0, 8));
+      })
+      .catch(() => setForwardUsers([]))
+      .finally(() => setForwardSearching(false));
+  }, [forwardSearch]);
+
+  function handleForwardTo(target) {
+    const convId = getConvId(user.uid, target.uid);
+    const pollData = {
+      id,
+      title: poll.title,
+      optionA: poll.optionA,
+      optionB: poll.optionB,
+      authorUsername: poll.authorUsername
+    };
+    setShowForwardModal(false);
+    setForwardSearch('');
+    navigate(`/messages/${convId}`, {
+      state: {
+        poll: pollData,
+        target: {
+          uid: target.uid,
+          username: target.username,
+          avatar: target.avatar || ''
+        }
+      }
+    });
+  }
 
   async function loadPoll() {
     try {
@@ -116,6 +222,17 @@ function PollView() {
         }));
         setHasVoted(true);
         setVotedOption(choice);
+
+        // Notifica l'autore del sondaggio
+        if (poll.authorId) {
+          createNotification(poll.authorId, {
+            type: 'vote',
+            fromUid: user.uid,
+            fromUsername: username,
+            pollId: id,
+            pollTitle: poll.title
+          });
+        }
       }
     } catch (err) {
       console.error('[QPe] Errore voto:', err);
@@ -155,6 +272,17 @@ function PollView() {
           likesCount: (prev.likesCount || 0) + 1
         }));
         setLiked(true);
+
+        // Notifica l'autore del sondaggio
+        if (poll.authorId) {
+          createNotification(poll.authorId, {
+            type: 'like',
+            fromUid: user.uid,
+            fromUsername: username,
+            pollId: id,
+            pollTitle: poll.title
+          });
+        }
       }
     } catch (err) {
       console.error('[QPe] Errore like:', err);
@@ -194,6 +322,17 @@ function PollView() {
       const docRef = await addDoc(collection(db, 'polls', id, 'comments'), newComment);
       setComments(prev => [...prev, { ...newComment, id: docRef.id, createdAt: new Date() }]);
       setCommentText('');
+
+      // Notifica l'autore del sondaggio
+      if (poll.authorId) {
+        createNotification(poll.authorId, {
+          type: 'comment',
+          fromUid: user.uid,
+          fromUsername: username,
+          pollId: id,
+          pollTitle: poll.title
+        });
+      }
     } catch (err) {
       console.error('[QPe] Errore invio commento:', err);
     } finally {
@@ -235,9 +374,168 @@ function PollView() {
     }
   }
 
+  async function loadReplies(commentId) {
+    if (replies[commentId]) return; // già caricate
+    try {
+      const q = query(
+        collection(db, 'polls', id, 'comments', commentId, 'replies'),
+        orderBy('createdAt', 'asc')
+      );
+      const snap = await getDocs(q);
+      const loaded = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setReplies(prev => ({ ...prev, [commentId]: loaded }));
+      // Sincronizza il contatore con la realtà (gestisce cancellazioni manuali da console)
+      setComments(prev => prev.map(c => {
+        if (c.id === commentId && c.repliesCount !== loaded.length) {
+          // Aggiorna anche Firestore per correggere il dato alla fonte
+          updateDoc(doc(db, 'polls', id, 'comments', commentId), {
+            repliesCount: loaded.length
+          }).catch(() => {});
+          return { ...c, repliesCount: loaded.length };
+        }
+        return c;
+      }));
+    } catch (err) {
+      console.error('[QPe] Errore caricamento risposte:', err);
+      setReplies(prev => ({ ...prev, [commentId]: [] }));
+    }
+  }
+
+  function toggleReplies(commentId) {
+    setShownReplies(prev => {
+      const next = new Set(prev);
+      if (next.has(commentId)) {
+        next.delete(commentId);
+      } else {
+        next.add(commentId);
+        loadReplies(commentId);
+      }
+      return next;
+    });
+  }
+
+  function startReply(commentId) {
+    setReplyingTo(commentId);
+    setReplyText('');
+    // Carica le risposte esistenti e mostrale
+    setShownReplies(prev => {
+      const next = new Set(prev);
+      next.add(commentId);
+      return next;
+    });
+    loadReplies(commentId);
+  }
+
+  async function handleSendReply(commentId) {
+    if (!user || !replyText.trim()) return;
+    setSendingReply(true);
+    const username = userProfile?.username || user.displayName || 'Anonimo';
+    const newReply = {
+      uid: user.uid,
+      username,
+      text: replyText.trim(),
+      createdAt: serverTimestamp()
+    };
+    try {
+      const replyRef = await addDoc(
+        collection(db, 'polls', id, 'comments', commentId, 'replies'),
+        newReply
+      );
+      // Aggiorna contatore risposte sul commento padre
+      await updateDoc(doc(db, 'polls', id, 'comments', commentId), {
+        repliesCount: increment(1)
+      });
+      setReplies(prev => ({
+        ...prev,
+        [commentId]: [...(prev[commentId] || []), { ...newReply, id: replyRef.id, createdAt: new Date() }]
+      }));
+      setComments(prev => prev.map(c =>
+        c.id === commentId ? { ...c, repliesCount: (c.repliesCount || 0) + 1 } : c
+      ));
+      setReplyText('');
+      setReplyingTo(null);
+
+      // Notifica l'autore del commento (non se stai rispondendo a te stesso)
+      const parentComment = comments.find(c => c.id === commentId);
+      if (parentComment && parentComment.uid !== user.uid) {
+        createNotification(parentComment.uid, {
+          type: 'comment',
+          fromUid: user.uid,
+          fromUsername: username,
+          pollId: id,
+          pollTitle: poll.title
+        });
+      }
+    } catch (err) {
+      console.error('[QPe] Errore invio risposta:', err);
+    } finally {
+      setSendingReply(false);
+    }
+  }
+
+  // Apri modale modifica con dati attuali
+  function openEditModal() {
+    setEditTitle(poll.title || '');
+    setEditHashtags(poll.hashtags?.length > 0 ? [...poll.hashtags] : poll.category ? [poll.category.toLowerCase()] : []);
+    setEditTagInput('');
+    setShowEditModal(true);
+  }
+
+  function addEditTag(raw) {
+    const tag = raw.replace(/[#\s]/g, '').toLowerCase().slice(0, 24);
+    if (!tag || editHashtags.includes(tag) || editHashtags.length >= 5) return;
+    setEditHashtags(prev => [...prev, tag]);
+    setEditTagInput('');
+  }
+
+  function removeEditTag(tag) {
+    setEditHashtags(prev => prev.filter(t => t !== tag));
+  }
+
+  async function handleSaveEdit() {
+    if (!editTitle.trim()) return;
+    setSavingEdit(true);
+    try {
+      await updateDoc(doc(db, 'polls', id), {
+        title: editTitle.trim(),
+        hashtags: editHashtags,
+      });
+      setPoll(prev => ({ ...prev, title: editTitle.trim(), hashtags: editHashtags }));
+      setShowEditModal(false);
+      toast.success('Sondaggio modificato!');
+    } catch (err) {
+      console.error('[QPe] Errore modifica poll:', err);
+      toast.error('Errore nella modifica. Riprova.');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDeletePoll() {
+    setDeletingPoll(true);
+    try {
+      // Elimina commenti (e loro risposte) prima di eliminare il poll
+      const commentsSnap = await getDocs(collection(db, 'polls', id, 'comments'));
+      await Promise.all(commentsSnap.docs.map(async (commentDoc) => {
+        const repliesSnap = await getDocs(collection(db, 'polls', id, 'comments', commentDoc.id, 'replies'));
+        await Promise.all(repliesSnap.docs.map(r => deleteDoc(r.ref)));
+        await deleteDoc(commentDoc.ref);
+      }));
+      // Elimina il sondaggio
+      await deleteDoc(doc(db, 'polls', id));
+      toast.success('Sondaggio eliminato.');
+      navigate('/');
+    } catch (err) {
+      console.error('[QPe] Errore eliminazione poll:', err);
+      toast.error('Errore nell\'eliminazione. Riprova.');
+      setDeletingPoll(false);
+      setShowDeleteConfirm(false);
+    }
+  }
+
   if (loading) {
     return (
-      <div className="pollview-page">
+      <div className="pollview-page page-enter">
         <div className="pollview-loading">Caricamento...</div>
       </div>
     );
@@ -245,7 +543,7 @@ function PollView() {
 
   if (error || !poll) {
     return (
-      <div className="pollview-page">
+      <div className="pollview-page page-enter">
         <div className="pollview-error">
           <p>{error || 'Sondaggio non trovato'}</p>
           <Link to="/">Torna alla home</Link>
@@ -266,7 +564,7 @@ function PollView() {
   const likers = poll.likes || [];
 
   return (
-    <div className="pollview-page">
+    <div className="pollview-page page-enter">
       {/* Header */}
       <div className="pollview-header">
         <Link to="/" className="pollview-back">
@@ -284,7 +582,20 @@ function PollView() {
           </div>
           <span className="pollview-author-name">@{poll.authorUsername}</span>
         </Link>
-        <div className="pollview-category">{poll.category}</div>
+        <div className="pollview-hashtags">
+          {(poll.hashtags?.length > 0
+            ? poll.hashtags
+            : poll.category ? [poll.category.toLowerCase()] : []
+          ).map(tag => (
+            <button
+              key={tag}
+              className="pollview-hashtag"
+              onClick={() => navigate(`/?tag=${tag}`)}
+            >
+              #{tag}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Question */}
@@ -292,10 +603,27 @@ function PollView() {
         <h1>{poll.title}</h1>
       </div>
 
-      {/* Messaggio autovoto */}
+      {/* Messaggio autovoto + controlli autore */}
       {isAuthor && (
         <div className="pollview-author-notice">
-          Sei il creatore di questo sondaggio — non puoi votare.
+          <span>Sei il creatore di questo sondaggio — non puoi votare.</span>
+          <div className="pollview-author-controls">
+            <button className="author-ctrl-btn" onClick={openEditModal} title="Modifica">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Modifica
+            </button>
+            <button className="author-ctrl-btn danger" onClick={() => setShowDeleteConfirm(true)} title="Elimina">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+              Elimina
+            </button>
+          </div>
         </div>
       )}
 
@@ -355,7 +683,7 @@ function PollView() {
           /* Per l'autore: bottone statistiche al posto del like */
           <button
             className={`action-btn stats-btn ${showStats ? 'active' : ''}`}
-            onClick={() => setShowStats(s => !s)}
+            onClick={() => { setShowStats(s => !s); setShowComments(false); }}
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="20" x2="18" y2="10" />
@@ -378,8 +706,26 @@ function PollView() {
         )}
 
         <div className="pollview-stats">
-          <span>{totalVotes} voti totali</span>
-          {!isAuthor && <span>{poll.likesCount || 0} like</span>}
+          <div className="pollview-stat-chip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            <span>{totalVotes}</span>
+          </div>
+          <div className="pollview-stat-divider" />
+          <div className="pollview-stat-chip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            <span>{poll.likesCount || 0}</span>
+          </div>
+          <div className="pollview-stat-divider" />
+          <div className="pollview-stat-chip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span>{poll.viewedBy?.length || 0}</span>
+          </div>
         </div>
 
         {/* Bottone commenti */}
@@ -388,6 +734,7 @@ function PollView() {
           onClick={() => {
             if (!showComments && comments.length === 0) loadComments();
             setShowComments(s => !s);
+            setShowStats(false);
           }}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -396,6 +743,15 @@ function PollView() {
           <span>{comments.length > 0 ? comments.length : ''}</span>
         </button>
 
+        {/* Inoltra — solo per utenti loggati */}
+        {user && (
+          <button className="action-btn" onClick={() => setShowForwardModal(true)} title="Inoltra">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 10 20 15 15 20" />
+              <path d="M4 4v7a4 4 0 0 0 4 4h12" />
+            </svg>
+          </button>
+        )}
         <button className="action-btn" onClick={() => {
           if (navigator.share) {
             navigator.share({ title: poll.title, url: window.location.href });
@@ -417,46 +773,75 @@ function PollView() {
         </div>
       )}
 
-      {/* Sezione statistiche — inline per l'autore, sotto la actions bar */}
+      {/* Sezione statistiche — inline per l'autore */}
       {isAuthor && showStats && (
         <div className="pollview-author-stats">
+          {/* Header */}
+          <div className="stats-header">
+            <span className="stats-header-title">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+              Statistiche
+            </span>
+          </div>
+
+          {/* Sommario numeri */}
+          <div className="stats-summary">
+            <div className="stats-kpi">
+              <span className="stats-kpi-num">{poll.viewedBy?.length || 0}</span>
+              <span className="stats-kpi-label">Visualizzazioni</span>
+            </div>
+            <div className="stats-kpi-divider" />
+            <div className="stats-kpi">
+              <span className="stats-kpi-num">{totalVotes}</span>
+              <span className="stats-kpi-label">Voti</span>
+            </div>
+            <div className="stats-kpi-divider" />
+            <div className="stats-kpi">
+              <span className="stats-kpi-num">{likers.length}</span>
+              <span className="stats-kpi-label">Like</span>
+            </div>
+          </div>
+
           <div className="stats-content">
-            {/* Votanti */}
-            <div className="stats-group">
-              <h3>
-                Votanti ({voters.length})
-                {totalVotes > 0 && (
-                  <span className="stats-split">
-                    &nbsp;— {poll.optionA.text}: {votersA.length} | {poll.optionB.text}: {votersB.length}
-                  </span>
-                )}
-              </h3>
-              {voters.length === 0 ? (
-                <p className="stats-empty">Nessun voto ancora.</p>
-              ) : (
+            {/* Votanti per opzione */}
+            {voters.length > 0 && (
+              <div className="stats-group">
+                <div className="stats-group-header">
+                  <span className="stats-group-title">Votanti</span>
+                  <div className="stats-option-pills">
+                    <span className="stats-option-pill" style={{ background: poll.optionA.color }}>
+                      {poll.optionA.text} · {votersA.length}
+                    </span>
+                    <span className="stats-option-pill" style={{ background: poll.optionB.color }}>
+                      {poll.optionB.text} · {votersB.length}
+                    </span>
+                  </div>
+                </div>
                 <ul className="stats-list">
                   {voters.map((v, i) => (
                     <li key={i} className="stats-item">
-                      <div className="stats-avatar">{(v.username || v.uid || '?')[0].toUpperCase()}</div>
+                      <div className="stats-avatar">{(v.username || '?')[0].toUpperCase()}</div>
                       <span className="stats-name">@{v.username || v.uid?.slice(0, 8) + '…'}</span>
-                      <span
-                        className="stats-choice"
-                        style={{ backgroundColor: v.choice === 'A' ? poll.optionA.color : poll.optionB.color }}
-                      >
+                      <span className="stats-choice" style={{ background: v.choice === 'A' ? poll.optionA.color : poll.optionB.color }}>
                         {v.choice === 'A' ? poll.optionA.text : poll.optionB.text}
                       </span>
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
+              </div>
+            )}
+            {voters.length === 0 && (
+              <p className="stats-empty-full">Nessun voto ancora.</p>
+            )}
 
             {/* Liker */}
-            <div className="stats-group">
-              <h3>Like ({likers.length})</h3>
-              {likers.length === 0 ? (
-                <p className="stats-empty">Nessun like ancora.</p>
-              ) : (
+            {likers.length > 0 && (
+              <div className="stats-group">
+                <div className="stats-group-header">
+                  <span className="stats-group-title">Like</span>
+                </div>
                 <ul className="stats-list">
                   {likers.map((liker, i) => {
                     const likerName = typeof liker === 'object'
@@ -466,10 +851,74 @@ function PollView() {
                       <li key={i} className="stats-item">
                         <div className="stats-avatar">{likerName[0]?.toUpperCase() || '?'}</div>
                         <span className="stats-name">@{likerName}</span>
-                        <span className="stats-heart">♥</span>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--danger)" stroke="none" style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                        </svg>
                       </li>
                     );
                   })}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modale inoltro sondaggio */}
+      {showForwardModal && (
+        <div className="forward-overlay" onClick={() => setShowForwardModal(false)}>
+          <div className="forward-modal" onClick={e => e.stopPropagation()}>
+            <div className="forward-modal-header">
+              <h2>Inoltra sondaggio</h2>
+              <button className="forward-close" onClick={() => setShowForwardModal(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="forward-poll-preview">
+              <div className="forward-poll-colors">
+                <div style={{ background: poll.optionA?.color || '#333' }} />
+                <div style={{ background: poll.optionB?.color || '#666' }} />
+              </div>
+              <span className="forward-poll-title">{poll.title}</span>
+            </div>
+            <div className="forward-search-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                ref={forwardInputRef}
+                className="forward-search-input"
+                type="text"
+                placeholder="Cerca un utente..."
+                value={forwardSearch}
+                onChange={e => setForwardSearch(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+            <div className="forward-results">
+              {forwardSearch.trim().length < 2 ? (
+                <p className="forward-hint">Digita almeno 2 caratteri</p>
+              ) : forwardSearching ? (
+                <p className="forward-hint">Ricerca...</p>
+              ) : forwardUsers.length === 0 ? (
+                <p className="forward-hint">Nessun utente trovato</p>
+              ) : (
+                <ul className="forward-user-list">
+                  {forwardUsers.map(u => (
+                    <li key={u.uid}>
+                      <button className="forward-user-btn" onClick={() => handleForwardTo(u)}>
+                        <div className="forward-user-avatar">
+                          {u.avatar ? <img src={u.avatar} alt="" /> : <span>{(u.username || '?')[0].toUpperCase()}</span>}
+                        </div>
+                        <span className="forward-user-name">@{u.username}</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
@@ -521,6 +970,14 @@ function PollView() {
             <ul className="comments-list">
               {comments.map(comment => {
                 const alreadyLiked = (comment.likes || []).includes(user?.uid);
+                const commentReplies = replies[comment.id] || [];
+                const repliesVisible = shownReplies.has(comment.id);
+                // Se le risposte sono già state caricate usa la lunghezza reale,
+                // altrimenti usa il contatore salvato (può essere desincronizzato)
+                const repliesCount = replies[comment.id]
+                  ? replies[comment.id].length
+                  : (comment.repliesCount || 0);
+
                 return (
                   <li key={comment.id} className="comment-item">
                     <div className="comment-avatar">{(comment.username || '?')[0].toUpperCase()}</div>
@@ -534,21 +991,94 @@ function PollView() {
                         )}
                       </div>
                       <p className="comment-text">{comment.text}</p>
-                      {comment.uid !== user?.uid && (
-                        <button
-                          className={`comment-like-btn ${alreadyLiked ? 'liked' : ''}`}
-                          onClick={() => handleCommentLike(comment.id)}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill={alreadyLiked ? 'var(--danger)' : 'none'} stroke={alreadyLiked ? 'var(--danger)' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                          </svg>
-                          <span>{comment.likesCount || 0}</span>
-                        </button>
+
+                      {/* Azioni commento */}
+                      <div className="comment-actions">
+                        {comment.uid !== user?.uid && (
+                          <button
+                            className={`comment-like-btn ${alreadyLiked ? 'liked' : ''}`}
+                            onClick={() => handleCommentLike(comment.id)}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill={alreadyLiked ? 'var(--danger)' : 'none'} stroke={alreadyLiked ? 'var(--danger)' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                            </svg>
+                            <span>{comment.likesCount || 0}</span>
+                          </button>
+                        )}
+                        {comment.uid === user?.uid && comment.likesCount > 0 && (
+                          <span className="comment-likes-readonly">♥ {comment.likesCount}</span>
+                        )}
+                        {user && (
+                          <button
+                            className="comment-reply-btn"
+                            onClick={() => replyingTo === comment.id ? setReplyingTo(null) : startReply(comment.id)}
+                          >
+                            Rispondi
+                          </button>
+                        )}
+                        {repliesCount > 0 && (
+                          <button className="comment-show-replies-btn" onClick={() => toggleReplies(comment.id)}>
+                            {repliesVisible
+                              ? 'Nascondi risposte'
+                              : `${repliesCount} risposta${repliesCount > 1 ? 'e' : ''}`}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Form risposta inline */}
+                      {replyingTo === comment.id && (
+                        <div className="reply-form">
+                          <div className="comment-avatar reply-avatar">
+                            {(userProfile?.username || user?.displayName || '?')[0].toUpperCase()}
+                          </div>
+                          <input
+                            className="reply-input"
+                            type="text"
+                            placeholder={`Rispondi a @${comment.username}…`}
+                            value={replyText}
+                            onChange={e => setReplyText(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendReply(comment.id); } }}
+                            maxLength={300}
+                            disabled={sendingReply}
+                            autoFocus
+                          />
+                          <button
+                            className="comment-send"
+                            onClick={() => handleSendReply(comment.id)}
+                            disabled={sendingReply || !replyText.trim()}
+                          >
+                            {sendingReply ? '…' : (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="22" y1="2" x2="11" y2="13" />
+                                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
                       )}
-                      {comment.uid === user?.uid && comment.likesCount > 0 && (
-                        <span className="comment-likes-readonly">
-                          ♥ {comment.likesCount}
-                        </span>
+
+                      {/* Lista risposte */}
+                      {repliesVisible && commentReplies.length > 0 && (
+                        <ul className="replies-list">
+                          {commentReplies.map(reply => (
+                            <li key={reply.id} className="reply-item">
+                              <div className="comment-avatar reply-avatar">
+                                {(reply.username || '?')[0].toUpperCase()}
+                              </div>
+                              <div className="reply-body">
+                                <div className="comment-header">
+                                  <span className="comment-username">@{reply.username}</span>
+                                  {reply.createdAt?.toDate && (
+                                    <span className="comment-time">
+                                      {reply.createdAt.toDate().toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="comment-text">{reply.text}</p>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </div>
                   </li>
@@ -556,6 +1086,103 @@ function PollView() {
               })}
             </ul>
           )}
+        </div>
+      )}
+      {/* ── Modale MODIFICA ── */}
+      {showEditModal && (
+        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Modifica sondaggio</h3>
+              <button className="modal-close" onClick={() => setShowEditModal(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-note">Puoi modificare la domanda e gli hashtag. Le opzioni di voto non possono essere cambiate.</p>
+              <div className="modal-field">
+                <label>Domanda</label>
+                <input
+                  type="text"
+                  value={editTitle}
+                  onChange={e => setEditTitle(e.target.value)}
+                  maxLength={120}
+                  autoFocus
+                />
+                <span className="modal-char-count">{editTitle.length}/120</span>
+              </div>
+              <div className="modal-field">
+                <label>Hashtag</label>
+                <div className="modal-tags-box">
+                  {editHashtags.map(tag => (
+                    <span key={tag} className="modal-tag-chip">
+                      #{tag}
+                      <button type="button" onClick={() => removeEditTag(tag)}>×</button>
+                    </span>
+                  ))}
+                  {editHashtags.length < 5 && (
+                    <input
+                      className="modal-tag-input"
+                      type="text"
+                      placeholder="Aggiungi tag…"
+                      value={editTagInput}
+                      onChange={e => setEditTagInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addEditTag(editTagInput); }
+                        if (e.key === 'Backspace' && !editTagInput && editHashtags.length > 0) removeEditTag(editHashtags[editHashtags.length - 1]);
+                      }}
+                      onBlur={() => editTagInput.trim() && addEditTag(editTagInput)}
+                      maxLength={25}
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-btn-secondary" onClick={() => setShowEditModal(false)}>Annulla</button>
+              <button
+                className="modal-btn-primary"
+                onClick={handleSaveEdit}
+                disabled={savingEdit || !editTitle.trim()}
+              >
+                {savingEdit ? 'Salvataggio...' : 'Salva modifiche'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modale ELIMINA ── */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => !deletingPoll && setShowDeleteConfirm(false)}>
+          <div className="modal-box modal-box-sm" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Elimina sondaggio</h3>
+            </div>
+            <div className="modal-body">
+              <p className="modal-delete-warning">
+                Questa azione è <strong>irreversibile</strong>. Il sondaggio, tutti i voti e i commenti verranno eliminati definitivamente.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="modal-btn-secondary"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deletingPoll}
+              >
+                Annulla
+              </button>
+              <button
+                className="modal-btn-danger"
+                onClick={handleDeletePoll}
+                disabled={deletingPoll}
+              >
+                {deletingPoll ? 'Eliminazione...' : 'Sì, elimina'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

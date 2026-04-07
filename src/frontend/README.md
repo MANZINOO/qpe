@@ -1,16 +1,79 @@
-# React + Vite
+# QPé — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Applicazione React + Vite per il social network QPé.
 
-Currently, two official plugins are available:
+## Avvio
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+# Installa dipendenze
+npm install
 
-## React Compiler
+# Copia le variabili d'ambiente
+cp .env.example .env
+# Inserisci i valori Firebase nel file .env
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+# Server di sviluppo (http://localhost:5173)
+npm run dev
 
-## Expanding the ESLint configuration
+# Build produzione
+npm run build
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+# Anteprima build
+npm run preview
+
+# Lint
+npm run lint
+```
+
+## Struttura `src/`
+
+```
+src/
+├── components/
+│   ├── BottomNav.jsx/.css       # Navigazione bottom mobile
+│   ├── CookieBanner.jsx/.css    # Banner consenso cookie GDPR
+│   ├── CookiePreferencesManager.jsx  # Gestione preferenze cookie
+│   ├── Footer.jsx/.css          # Footer (solo login/signup/settings)
+│   └── LoadingGif.jsx           # Spinner tema-aware
+├── context/
+│   ├── AuthContext.jsx          # Auth + profilo Firestore
+│   ├── ThemeContext.jsx         # Dark/light theme
+│   └── ToastContext.jsx         # Toast notifications
+├── pages/
+│   ├── Home.jsx/.css            # Feed principale con tab
+│   ├── Login.jsx                # Login email/Google
+│   ├── Signup.jsx               # Registrazione multi-step
+│   ├── Profile.jsx              # Profilo personale
+│   ├── Settings.jsx/.css        # Impostazioni (profilo, notifiche, privacy, account)
+│   ├── CreatePoll.jsx/.css      # Creazione sondaggio
+│   ├── PollView.jsx/.css        # Visualizzazione e voto sondaggio
+│   ├── UserProfile.jsx/.css     # Profilo pubblico utente
+│   ├── Notifications.jsx/.css   # Notifiche in tempo reale
+│   ├── Search.jsx/.css          # Ricerca utenti e sondaggi
+│   ├── Messages.jsx/.css        # Lista conversazioni DM
+│   ├── Chat.jsx/.css            # Chat one-to-one
+│   ├── PrivacyPolicy.jsx        # Privacy Policy
+│   └── CookiePolicy.jsx         # Cookie Policy
+├── utils/
+│   ├── cookieConsent.js         # Gestione cookie GDPR (js-cookie)
+│   ├── conversations.js         # Helper ID conversazioni DM
+│   ├── imageUtils.js            # Compressione immagini client-side
+│   └── notifications.js         # Creazione notifiche Firestore
+├── App.jsx                      # Router + Provider wrapper
+├── firebase.js                  # Inizializzazione Firebase (da .env)
+├── App.css                      # Stili globali componente
+└── index.css                    # Design system (variabili CSS, reset, utilities)
+```
+
+## Variabili d'ambiente
+
+| Variabile | Descrizione |
+|---|---|
+| `VITE_FIREBASE_API_KEY` | API Key Firebase |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Auth Domain |
+| `VITE_FIREBASE_PROJECT_ID` | Project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Storage Bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Messaging Sender ID |
+| `VITE_FIREBASE_APP_ID` | App ID |
+
+Vedi `.env.example` per il template.

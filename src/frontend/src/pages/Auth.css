@@ -1,88 +1,134 @@
-/* Auth pages - Instagram style */
+/* Back link (usato in Profile, Settings, ecc.) */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  padding: 4px 0;
+  transition: color 0.15s;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  color: var(--accent);
+}
+
+/* Auth pages */
 .auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg);
-  padding: 16px;
+  padding: 24px 16px;
+}
+
+/* Su schermi bassi (es. iPhone SE) → parte dall'alto per non tagliare il form */
+@media (max-height: 640px) {
+  .auth-page {
+    align-items: flex-start;
+    padding-top: 32px;
+    padding-bottom: 32px;
+  }
 }
 
 .auth-container {
-  background: var(--bg);
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 40px 36px;
+  border-radius: var(--radius-xl);
+  padding: 44px 40px;
   width: 100%;
   max-width: 420px;
+  box-shadow: var(--shadow-md);
 }
 
 @media (max-width: 480px) {
   .auth-container {
-    padding: 32px 24px;
-    max-width: 350px;
-    border-radius: var(--radius);
+    padding: 24px 20px 24px;
+    border-radius: var(--radius-lg);
   }
 }
 
 .auth-logo {
-  font-size: 28px;
-  font-weight: 800;
   text-align: center;
   margin: 0 0 4px 0;
-  letter-spacing: -0.5px;
+  display: flex;
+  justify-content: center;
 }
 
-/* reuse logo style from Home */
-.auth-logo .logo-qp,
-.auth-logo {
-  color: var(--text);
+.auth-logo-img {
+  height: 96px;
+  width: auto;
+  display: block;
+  margin: -12px auto;
+}
+
+@media (max-width: 480px) {
+  .auth-logo-img {
+    height: 68px;
+    margin: -8px auto;
+  }
 }
 
 .auth-container h2 {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-muted);
   text-align: center;
-  margin: 0 0 24px 0;
+  margin: 0 0 20px 0;
   font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 480px) {
+  .auth-container h2 {
+    margin-bottom: 16px;
+  }
 }
 
 .auth-error {
-  background: rgba(237, 73, 86, 0.1);
-  border: 1px solid rgba(237, 73, 86, 0.2);
+  background: rgba(255, 69, 58, 0.1);
+  border: 1px solid rgba(255, 69, 58, 0.2);
   color: var(--danger);
-  padding: 10px 12px;
+  padding: 11px 14px;
   border-radius: var(--radius);
-  font-size: 13px;
-  margin-bottom: 12px;
+  font-size: 14px;
+  margin-bottom: 14px;
   text-align: center;
+  line-height: 1.4;
 }
 
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .auth-field label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 4px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.01em;
 }
 
 .auth-field input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 13px;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-size: 15px;
   background: var(--bg-input);
   color: var(--text);
   box-sizing: border-box;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: var(--font);
+  -webkit-appearance: none;
 }
 
 .auth-field input::placeholder {
@@ -90,48 +136,57 @@
 }
 
 .auth-field input:focus {
-  border-color: var(--text-muted);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .auth-btn-primary {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
   background: var(--accent);
   color: white;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  margin-top: 8px;
-  transition: background 0.15s;
+  margin-top: 6px;
+  transition: background 0.15s, transform 0.15s;
+  font-family: var(--font);
+  letter-spacing: -0.01em;
 }
 
 .auth-btn-primary:hover {
   background: var(--accent-hover);
 }
 
+.auth-btn-primary:active {
+  transform: scale(0.98);
+}
+
 .auth-btn-primary:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: default;
+  transform: none;
 }
 
 .auth-btn-secondary {
-  padding: 10px 20px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  padding: 12px 20px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  font-family: var(--font);
 }
 
 .auth-divider {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin: 20px 0;
+  gap: 14px;
+  margin: 16px 0;
 }
 
 .auth-divider::before,
@@ -146,39 +201,49 @@
   font-size: 12px;
   color: var(--text-muted);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .auth-btn-google {
   width: 100%;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: transparent;
-  font-size: 13px;
+  padding: 11px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--bg-card);
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   color: var(--text);
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  font-family: var(--font);
+  letter-spacing: -0.01em;
 }
 
 .auth-btn-google:hover {
   background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.auth-btn-google:active {
+  transform: scale(0.98);
 }
 
 .auth-btn-google:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: default;
+  transform: none;
 }
 
 .auth-switch {
   text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
-  margin-top: 20px;
+  margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
@@ -188,39 +253,41 @@
   font-weight: 600;
 }
 
-/* Categories */
+/* ===== CATEGORIES STEP (Signup) ===== */
 .categories-step {
   margin-top: 4px;
 }
 
 .categories-intro {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.5;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .categories-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 24px;
 }
 
 .category-chip {
-  padding: 7px 14px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
+  padding: 8px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-xl);
   background: transparent;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   color: var(--text-secondary);
   transition: all 0.15s;
+  font-family: var(--font);
 }
 
 .category-chip:hover {
-  border-color: var(--text-muted);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .category-chip.selected {
@@ -237,10 +304,10 @@
 
 .categories-actions .auth-btn-primary {
   width: auto;
-  padding: 10px 28px;
+  padding: 11px 28px;
 }
 
-/* Profile */
+/* ===== PROFILE PAGE (here for colocation) ===== */
 .profile-page {
   flex: 1;
   background: var(--bg);
@@ -263,19 +330,20 @@
 }
 
 .profile-avatar-large {
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   background: var(--bg-input);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   color: var(--text-secondary);
-  margin: 0 auto 10px;
+  margin: 0 auto 12px;
   border: 2px solid var(--border);
   overflow: hidden;
+  position: relative;
 }
 
 .profile-avatar-large img {
@@ -284,15 +352,56 @@
   object-fit: cover;
 }
 
+.profile-avatar-clickable {
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.profile-avatar-clickable:hover {
+  border-color: var(--accent);
+}
+
+.profile-avatar-uploading {
+  cursor: default;
+}
+
+.profile-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.profile-avatar-clickable:hover .profile-avatar-overlay {
+  opacity: 1;
+}
+
+.profile-avatar-progress {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .profile-username {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 700;
-  margin: 0 0 2px 0;
+  margin: 0 0 3px 0;
   color: var(--text);
+  letter-spacing: -0.03em;
 }
 
 .profile-email {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-muted);
   margin: 0;
 }
@@ -311,16 +420,16 @@
 }
 
 .profile-card h3 {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 8px 0;
+  letter-spacing: 0.06em;
+  margin: 0 0 10px 0;
 }
 
 .profile-bio {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.5;
 }
@@ -332,10 +441,10 @@
 }
 
 .profile-cat-tag {
-  padding: 4px 12px;
+  padding: 5px 14px;
   background: var(--bg-input);
   color: var(--text-secondary);
-  border-radius: 14px;
+  border-radius: var(--radius-xl);
   font-size: 12px;
   font-weight: 500;
 }
@@ -352,15 +461,17 @@
 }
 
 .profile-stat-number {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 800;
   color: var(--text);
   display: block;
+  letter-spacing: -0.03em;
 }
 
 .profile-stat-label {
   font-size: 11px;
   color: var(--text-muted);
+  letter-spacing: 0.01em;
 }
 
 .profile-actions {
@@ -371,21 +482,23 @@
 .profile-actions button,
 .profile-actions a {
   flex: 1;
-  padding: 8px;
-  border-radius: var(--radius);
-  font-size: 13px;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   text-align: center;
   text-decoration: none;
   border: none;
   transition: all 0.15s;
+  font-family: var(--font);
+  letter-spacing: -0.01em;
 }
 
 .btn-edit-profile {
   background: var(--bg-input);
   color: var(--text);
-  border: 1px solid var(--border) !important;
+  border: 1.5px solid var(--border) !important;
 }
 
 .btn-edit-profile:hover {
@@ -396,9 +509,9 @@
 .btn-logout {
   background: transparent;
   color: var(--danger);
-  border: 1px solid var(--border) !important;
+  border: 1.5px solid var(--border) !important;
 }
 
 .btn-logout:hover {
-  background: rgba(237, 73, 86, 0.08);
+  background: rgba(255, 69, 58, 0.08);
 }

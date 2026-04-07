@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getConvId } from '../utils/conversations';
 import { doc, getDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import './UserProfile.css';
@@ -8,6 +9,7 @@ import './UserProfile.css';
 function UserProfile() {
   const { uid } = useParams();
   const { user, userProfile, followUser, unfollowUser } = useAuth();
+  const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
   const [polls, setPolls] = useState([]);
@@ -45,6 +47,20 @@ function UserProfile() {
     }
   }
 
+  function handleMessage() {
+    if (!user) { navigate('/login'); return; }
+    const convId = getConvId(user.uid, uid);
+    navigate(`/messages/${convId}`, {
+      state: {
+        target: {
+          uid,
+          username: profile?.username || 'Utente',
+          avatar: profile?.avatar || ''
+        }
+      }
+    });
+  }
+
   async function handleFollow() {
     if (!user || isOwnProfile) return;
     setFollowLoading(true);
@@ -71,15 +87,33 @@ function UserProfile() {
 
   if (loading) {
     return (
-      <div className="userprofile-page">
-        <div className="userprofile-loading">Caricamento...</div>
+      <div className="userprofile-page page-enter">
+        <div className="userprofile-header">
+          <Link to="/" className="userprofile-back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </Link>
+          <div className="skeleton skeleton-text" style={{ width: 100, margin: 0 }} />
+          <div style={{ width: 20 }} />
+        </div>
+        <div style={{ padding: '24px', textAlign: 'center' }}>
+          <div className="skeleton skeleton-circle" style={{ width: 80, height: 80, margin: '0 auto 14px' }} />
+          <div className="skeleton skeleton-text" style={{ width: 140, margin: '0 auto 8px' }} />
+          <div className="skeleton skeleton-text short" style={{ margin: '0 auto 16px', width: 200 }} />
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 32, marginBottom: 20 }}>
+            <div className="skeleton skeleton-text" style={{ width: 50, marginBottom: 0 }} />
+            <div className="skeleton skeleton-text" style={{ width: 50, marginBottom: 0 }} />
+            <div className="skeleton skeleton-text" style={{ width: 50, marginBottom: 0 }} />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!profile) {
     return (
-      <div className="userprofile-page">
+      <div className="userprofile-page page-enter">
         <div className="userprofile-error">
           <p>Utente non trovato</p>
           <Link to="/">Torna alla home</Link>
@@ -94,7 +128,7 @@ function UserProfile() {
   const followingCount = (profile.following || []).length;
 
   return (
-    <div className="userprofile-page">
+    <div className="userprofile-page page-enter">
       {/* Header */}
       <div className="userprofile-header">
         <Link to="/" className="userprofile-back">
@@ -136,18 +170,26 @@ function UserProfile() {
           </div>
         </div>
 
-        {/* Pulsante follow / modifica */}
+        {/* Pulsanti azione */}
         <div className="userprofile-action">
           {isOwnProfile ? (
             <Link to="/settings" className="userprofile-btn edit">Modifica profilo</Link>
           ) : user ? (
-            <button
-              className={`userprofile-btn ${isFollowing ? 'following' : 'follow'}`}
-              onClick={handleFollow}
-              disabled={followLoading || !userProfile}
-            >
-              {followLoading || !userProfile ? '...' : isFollowing ? 'Segui già' : 'Segui'}
-            </button>
+            <>
+              <button
+                className={`userprofile-btn ${isFollowing ? 'following' : 'follow'}`}
+                onClick={handleFollow}
+                disabled={followLoading || !userProfile}
+              >
+                {followLoading || !userProfile ? '...' : isFollowing ? 'Segui già' : 'Segui'}
+              </button>
+              <button className="userprofile-btn message" onClick={handleMessage}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                Messaggio
+              </button>
+            </>
           ) : (
             <Link to="/login" className="userprofile-btn follow">Accedi per seguire</Link>
           )}
@@ -170,24 +212,49 @@ function UserProfile() {
           <p className="userprofile-no-polls">Nessun sondaggio pubblicato.</p>
         ) : (
           <div className="userprofile-polls-grid">
-            {polls.map(poll => (
-              <Link to={`/poll/${poll.id}`} key={poll.id} className="poll-card">
-                <div className="poll-card-top" style={{ backgroundColor: poll.optionA?.color || '#333' }}>
-                  <span>{poll.optionA?.text}</span>
-                </div>
-                <div className="poll-card-line" />
-                <div className="poll-card-bottom" style={{ backgroundColor: poll.optionB?.color || '#666' }}>
-                  <span>{poll.optionB?.text}</span>
-                </div>
-                <div className="poll-card-footer">
-                  <span className="poll-card-title">{poll.title}</span>
-                  <div className="poll-card-meta">
-                    <span>{poll.totalVotes || 0} voti</span>
-                    <span>{poll.likesCount || 0} &#9829;</span>
+            {polls.map(poll => {
+              const tags = poll.hashtags?.length > 0
+                ? poll.hashtags
+                : poll.category ? [poll.category.toLowerCase()] : [];
+              return (
+                <Link to={`/poll/${poll.id}`} key={poll.id} className="poll-card">
+                  <div className="poll-card-top" style={{ backgroundColor: poll.optionA?.color || '#333' }}>
+                    <span>{poll.optionA?.text}</span>
                   </div>
-                </div>
-              </Link>
-            ))}
+                  <div className="poll-card-line" />
+                  <div className="poll-card-bottom" style={{ backgroundColor: poll.optionB?.color || '#666' }}>
+                    <span>{poll.optionB?.text}</span>
+                  </div>
+                  <div className="poll-card-footer">
+                    <span className="poll-card-title">{poll.title}</span>
+                    {tags.length > 0 && (
+                      <div className="poll-card-tags">
+                        {tags.slice(0, 2).map(t => (
+                          <button
+                            key={t}
+                            className="poll-card-tag"
+                            onClick={e => { e.preventDefault(); navigate(`/?tag=${t}`); }}
+                          >
+                            #{t}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="poll-card-meta">
+                      <span>{poll.totalVotes || 0} voti</span>
+                      <span>{poll.likesCount || 0} &#9829;</span>
+                      <span title="Visualizzazioni">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display:'inline',verticalAlign:'middle',marginRight:2 }}>
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        {poll.viewedBy?.length || 0}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

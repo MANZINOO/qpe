@@ -1,4 +1,4 @@
-/* qpe - App shell (responsive full-width) */
+/* qpe - App shell */
 .app {
   min-height: 100vh;
   display: flex;
@@ -6,4 +6,5 @@
   background: var(--bg);
   width: 100%;
   position: relative;
+  transition: background-color 0.25s ease;
 }

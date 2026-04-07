@@ -1,33 +1,44 @@
-/* Footer - Instagram style */
+/* Footer — visibile solo su login/signup/settings */
 .app-footer {
   background: var(--bg);
   border-top: 1px solid var(--border);
-  padding: 16px;
+  padding: 20px 24px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   margin-top: auto;
 }
 
 .footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 1200px;
+  margin: 0 auto;
   text-align: center;
 }
 
 .footer-links {
   display: flex;
+  align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 4px 0;
+  row-gap: 4px;
 }
 
 .footer-links a,
 .footer-link-btn {
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
   background: none;
   border: none;
   cursor: pointer;
-  padding: 0;
-  font-family: inherit;
+  padding: 3px 10px;
+  font-family: var(--font);
   text-decoration: none;
+  transition: color 0.15s;
+  white-space: nowrap;
 }
 
 .footer-links a:hover,
@@ -35,33 +46,51 @@
   color: var(--text-secondary);
 }
 
+/* Separatore · tra ogni link */
+.footer-links a + a,
+.footer-links a + button,
+.footer-links button + a,
+.footer-links button + button {
+  border-left: 1px solid var(--border);
+}
+
 .footer-copy {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   margin: 0;
+  opacity: 0.55;
+  white-space: nowrap;
+}
+
+/* Desktop: una riga sola */
+@media (min-width: 640px) {
+  .footer-content {
+    flex-direction: row;
+    justify-content: space-between;
+  }
 }
 
 /* Cookie Preferences Modal */
 .cookie-prefs-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.65);
+  inset: 0;
+  background: var(--overlay);
   z-index: 9998;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .cookie-prefs-modal {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  max-width: 420px;
+  border-radius: var(--radius-xl);
+  max-width: 440px;
   width: 100%;
   max-height: 80vh;
   overflow-y: auto;
+  box-shadow: var(--shadow-lg);
 }

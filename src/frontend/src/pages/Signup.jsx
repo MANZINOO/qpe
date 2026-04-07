@@ -92,9 +92,11 @@ function Signup() {
   }
 
   return (
-    <div className="auth-page">
+    <div className="auth-page page-enter">
       <div className="auth-container">
-        <h1 className="auth-logo"><span className="logo-qp">qp</span><span className="logo-accent">e</span></h1>
+        <h1 className="auth-logo">
+          <img src="/qpe_logo.svg" alt="QPe" className="auth-logo-img" />
+        </h1>
         <h2>Crea il tuo account</h2>
 
         {error && <div className="auth-error">{error}</div>}

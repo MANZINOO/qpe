@@ -59,11 +59,7 @@ function CookieBanner({ onConsentGiven }) {
               <div className="cookie-category">
                 <div className="cookie-category-header">
                   <label>
-                    <input
-                      type="checkbox"
-                      checked={true}
-                      disabled
-                    />
+                    <input type="checkbox" checked={true} disabled />
                     <span className="cookie-label">Necessari</span>
                     <span className="cookie-badge always-on">Sempre attivi</span>
                   </label>

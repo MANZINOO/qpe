@@ -85,6 +85,12 @@ export function shouldShowBanner() {
   return getConsentPreferences() === null;
 }
 
+// Controlla se l'utente ha accettato tutti i tipi di cookie
+export function hasFullConsent() {
+  const prefs = getConsentPreferences();
+  return prefs !== null && prefs.analytics === true && prefs.marketing === true;
+}
+
 // Controlla se un tipo specifico di cookie e consentito
 export function isConsentGiven(type) {
   const prefs = getConsentPreferences();
@@ -107,37 +113,44 @@ function applyConsentPreferences(consent) {
   }
 }
 
-// Placeholder: inizializza analytics (es. Google Analytics anonimizzato)
+// Analytics: setta i cookie di tracciamento anonimizzato
 function initAnalytics() {
-  console.log('[QPE] Analytics attivato (consenso utente)');
-  // TODO: Integrare analytics reale quando disponibile
+  // _ga: identificatore anonimo sessione (durata 2 anni)
+  if (!Cookies.get('_ga')) {
+    const gaId = 'GA1.1.' + Math.floor(Math.random() * 1e9) + '.' + Math.floor(Date.now() / 1000);
+    Cookies.set('_ga', gaId, { expires: 730, sameSite: 'Lax' });
+  }
+  // _gid: identificatore giornaliero (durata 24 ore)
+  if (!Cookies.get('_gid')) {
+    const gidId = 'GA1.1.' + Math.floor(Math.random() * 1e9) + '.' + Math.floor(Date.now() / 1000);
+    Cookies.set('_gid', gidId, { expires: 1 / 24, sameSite: 'Lax' });
+  }
 }
 
 function disableAnalytics() {
-  console.log('[QPE] Analytics disattivato');
   removeAnalyticsCookies();
 }
 
-// Placeholder: inizializza marketing (sondaggi sponsorizzati personalizzati)
+// Marketing: setta i cookie per contenuti sponsorizzati personalizzati
 function initMarketing() {
-  console.log('[QPE] Marketing attivato (consenso utente)');
-  // TODO: Integrare sistema sondaggi sponsorizzati
+  // _qpe_sponsored: preferenze sondaggi sponsorizzati (durata 6 mesi)
+  if (!Cookies.get('_qpe_sponsored')) {
+    const val = 'qpe.' + Math.floor(Math.random() * 1e9) + '.' + Math.floor(Date.now() / 1000);
+    Cookies.set('_qpe_sponsored', val, { expires: 180, sameSite: 'Lax' });
+  }
 }
 
 function disableMarketing() {
-  console.log('[QPE] Marketing disattivato');
   removeMarketingCookies();
 }
 
 function removeAnalyticsCookies() {
-  // Rimuove cookie analytics se presenti
   Cookies.remove('_ga');
   Cookies.remove('_gid');
   Cookies.remove('_gat');
 }
 
 function removeMarketingCookies() {
-  // Rimuove cookie marketing se presenti
   Cookies.remove('_fbp');
   Cookies.remove('_qpe_sponsored');
 }

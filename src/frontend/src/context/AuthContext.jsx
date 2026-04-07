@@ -9,6 +9,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
+import { createNotification } from '../utils/notifications';
 
 const AuthContext = createContext(null);
 
@@ -172,6 +173,13 @@ export function AuthProvider({ children }) {
     });
     await updateDoc(doc(db, 'users', targetUid), {
       followers: arrayUnion(user.uid)
+    });
+    // Notifica il target che qualcuno lo ha seguito
+    const username = userProfile?.username || user.displayName || 'Utente';
+    createNotification(targetUid, {
+      type: 'follow',
+      fromUid: user.uid,
+      fromUsername: username
     });
     setUserProfile(prev => {
       if (!prev) return prev;

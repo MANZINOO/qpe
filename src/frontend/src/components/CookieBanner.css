@@ -1,4 +1,4 @@
-/* Cookie Banner - Instagram style */
+/* Cookie Banner */
 .cookie-banner-overlay {
   position: fixed;
   bottom: 0;
@@ -7,11 +7,21 @@
   z-index: 9999;
   display: flex;
   justify-content: center;
+  padding: 0 12px 12px;
+}
+
+@media (max-width: 768px) {
+  .cookie-banner-overlay {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding: 0 8px 8px;
+  }
 }
 
 .cookie-banner {
   background: var(--bg-card);
-  border-top: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   width: 100%;
   max-width: 480px;
   padding: 16px;
@@ -64,7 +74,7 @@
 
 .cookie-badge.always-on {
   font-size: 10px;
-  background: rgba(0, 149, 246, 0.1);
+  background: var(--accent-soft);
   color: var(--accent);
   padding: 2px 8px;
   border-radius: 10px;
@@ -93,6 +103,7 @@
   cursor: pointer;
   border: none;
   transition: all 0.15s;
+  font-family: var(--font);
 }
 
 .btn-primary {
