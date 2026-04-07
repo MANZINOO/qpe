@@ -11,7 +11,7 @@ Pianificazione temporale del progetto QPé.
 
 # Gantt del Progetto
 
-```mermaid
+
 gantt
     title QPé — Piano di Progetto 2026
     dateFormat  YYYY-MM-DD
