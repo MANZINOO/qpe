@@ -43,7 +43,8 @@
   .userprofile-page,
   .settings-page,
   .create-poll-page,
-  .profile-page {
+  .profile-page,
+  .pollview-page {
     padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
