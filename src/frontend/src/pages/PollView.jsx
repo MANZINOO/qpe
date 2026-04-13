@@ -680,7 +680,7 @@ function PollView() {
       {/* Coupé - le due metà */}
       <div className="pollview-coupe">
         <button
-          className={`coupe-half coupe-top ${hasVoted ? 'voted' : ''} ${votedOption === 'A' ? 'chosen' : ''} ${isAuthor ? 'no-vote' : ''}`}
+          className={`coupe-half coupe-top ${(hasVoted || isAuthor) ? 'voted' : ''} ${votedOption === 'A' ? 'chosen' : ''} ${isAuthor ? 'no-vote' : ''}`}
           style={{
             backgroundColor: poll.optionA.color,
             ...(poll.optionA.image && { backgroundImage: `url(${poll.optionA.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
@@ -691,7 +691,7 @@ function PollView() {
         >
           {poll.optionA.image && <div className="coupe-img-overlay" />}
           <span className="coupe-text">{poll.optionA.text}</span>
-          {hasVoted && (
+          {(hasVoted || isAuthor) && (
             <div className="coupe-result">
               <div className="coupe-result-bar" style={{ width: `${percA}%` }} />
               <span className="coupe-result-perc">{percA}%</span>
@@ -706,7 +706,7 @@ function PollView() {
         </div>
 
         <button
-          className={`coupe-half coupe-bottom ${hasVoted ? 'voted' : ''} ${votedOption === 'B' ? 'chosen' : ''} ${isAuthor ? 'no-vote' : ''}`}
+          className={`coupe-half coupe-bottom ${(hasVoted || isAuthor) ? 'voted' : ''} ${votedOption === 'B' ? 'chosen' : ''} ${isAuthor ? 'no-vote' : ''}`}
           style={{
             backgroundColor: poll.optionB.color,
             ...(poll.optionB.image && { backgroundImage: `url(${poll.optionB.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
@@ -717,7 +717,7 @@ function PollView() {
         >
           {poll.optionB.image && <div className="coupe-img-overlay" />}
           <span className="coupe-text">{poll.optionB.text}</span>
-          {hasVoted && (
+          {(hasVoted || isAuthor) && (
             <div className="coupe-result">
               <div className="coupe-result-bar" style={{ width: `${percB}%` }} />
               <span className="coupe-result-perc">{percB}%</span>
