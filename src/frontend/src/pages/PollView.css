@@ -346,6 +346,13 @@
   cursor: default;
 }
 
+/* Vista autore: nessun dimming, nessun bordo — solo risultati neutri */
+.coupe-half.author-view.voted,
+.coupe-half.author-view.voted:not(.chosen) {
+  opacity: 1;
+  box-shadow: none;
+}
+
 .coupe-text {
   font-size: 28px;
   font-weight: 900;
