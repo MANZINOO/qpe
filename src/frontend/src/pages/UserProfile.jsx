@@ -18,6 +18,8 @@ function UserProfile() {
 
   const isOwnProfile = user && user.uid === uid;
   const isFollowing = userProfile?.following?.includes(uid) || false;
+  // Richiesta di follow inviata ma non ancora accettata
+  const hasPendingRequest = !isFollowing && profile?.followRequests?.includes(user?.uid);
 
   useEffect(() => {
     loadProfile();
@@ -80,6 +82,8 @@ function UserProfile() {
           return { ...prev, followers: [...followers, user.uid] };
         });
       }
+    } catch (err) {
+      console.warn('[QPe] Errore follow/unfollow:', err.message);
     } finally {
       setFollowLoading(false);
     }
@@ -136,7 +140,14 @@ function UserProfile() {
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </Link>
-        <span className="userprofile-header-name">@{displayName}</span>
+        <span className="userprofile-header-name">
+          @{displayName}
+          {profile?.isPrivate && (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 5, opacity: 0.6, verticalAlign: 'middle' }}>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          )}
+        </span>
         <div style={{ width: 20 }} />
       </div>
 
@@ -177,11 +188,17 @@ function UserProfile() {
           ) : user ? (
             <>
               <button
-                className={`userprofile-btn ${isFollowing ? 'following' : 'follow'}`}
+                className={`userprofile-btn ${isFollowing ? 'following' : hasPendingRequest ? 'pending' : 'follow'}`}
                 onClick={handleFollow}
                 disabled={followLoading || !userProfile}
               >
-                {followLoading || !userProfile ? '...' : isFollowing ? 'Segui già' : 'Segui'}
+                {followLoading || !userProfile
+                  ? '...'
+                  : isFollowing
+                    ? 'Segui già'
+                    : hasPendingRequest
+                      ? 'Richiesta inviata'
+                      : profile?.isPrivate ? 'Richiedi' : 'Segui'}
               </button>
               <button className="userprofile-btn message" onClick={handleMessage}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

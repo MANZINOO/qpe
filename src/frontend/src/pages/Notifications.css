@@ -180,6 +180,45 @@
   flex-shrink: 0;
 }
 
+/* Follow request actions */
+.notif-fr-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.notif-fr-btn {
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.notif-fr-btn:active { opacity: 0.7; }
+
+.notif-fr-btn.accept {
+  background: var(--accent);
+  color: #fff;
+}
+
+.notif-fr-btn.reject {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.notif-fr-status {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.notif-fr-status.accepted { color: var(--accent); }
+.notif-fr-status.rejected { color: var(--text-muted); }
+
 /* Responsive */
 @media (max-width: 600px) {
   .notif-item {

@@ -11,7 +11,7 @@ import CookiePreferencesManager from '../components/CookiePreferencesManager';
 import './Settings.css';
 
 function Settings() {
-  const { user, userProfile, updateUserProfile } = useAuth();
+  const { user, userProfile, updateUserProfile, enablePushNotifications } = useAuth();
   const { theme, setTheme } = useTheme();
   const toast = useToast();
   const fileInputRef = useRef(null);
@@ -40,6 +40,10 @@ function Settings() {
     ...(userProfile?.notifPrefs || {})
   }));
   const [savingNotif, setSavingNotif] = useState(false);
+  const [pushPermission, setPushPermission] = useState(() =>
+    typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
+  );
+  const [enablingPush, setEnablingPush] = useState(false);
 
   // Stato privacy
   const defaultPrivacy = { votesVisibility: 'nobody', followApproval: 'everyone' };
@@ -51,6 +55,23 @@ function Settings() {
 
   // Stato cambio password
   const [sendingReset, setSendingReset] = useState(false);
+
+  async function handleEnablePush() {
+    setEnablingPush(true);
+    try {
+      await enablePushNotifications();
+      setPushPermission(Notification.permission);
+      if (Notification.permission === 'granted') {
+        toast.success('Notifiche push attivate!');
+      } else {
+        toast.error('Permesso negato. Abilita le notifiche nelle impostazioni del browser.');
+      }
+    } catch {
+      toast.error('Errore nell\'attivazione. Riprova.');
+    } finally {
+      setEnablingPush(false);
+    }
+  }
 
   // Salva preferenze notifiche
   async function handleSaveNotifications() {
@@ -416,6 +437,36 @@ function Settings() {
           {activeTab === 'notifications' && (
             <div className="settings-section">
               <h2>Gestione notifiche</h2>
+
+              {/* Push notifications */}
+              {pushPermission !== 'unsupported' && (
+                <div className="push-notif-block">
+                  <div className="push-notif-info">
+                    <strong>Notifiche push</strong>
+                    <span className="push-notif-status">
+                      {pushPermission === 'granted' && '✓ Attive'}
+                      {pushPermission === 'denied' && '✗ Bloccate dal browser'}
+                      {pushPermission === 'default' && 'Non ancora attivate'}
+                    </span>
+                  </div>
+                  {pushPermission !== 'denied' && pushPermission !== 'granted' && (
+                    <button
+                      className="btn-save-settings"
+                      onClick={handleEnablePush}
+                      disabled={enablingPush}
+                      style={{ marginBottom: 0 }}
+                    >
+                      {enablingPush ? 'Attivazione...' : 'Attiva notifiche push'}
+                    </button>
+                  )}
+                  {pushPermission === 'denied' && (
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+                      Per attivarle, vai nelle impostazioni del browser e consenti le notifiche per questo sito.
+                    </p>
+                  )}
+                </div>
+              )}
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '16px 0' }} />
               <div className="toggle-row">
                 <span>Like ai tuoi sondaggi</span>
                 <label className="switch">

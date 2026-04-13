@@ -7,6 +7,7 @@ import './Notifications.css';
 
 const NOTIF_MESSAGES = {
   follow: (n) => `ti ha iniziato a seguire`,
+  followRequest: (n) => `vuole seguirti`,
   vote: (n) => `ha votato "${n.pollTitle || 'il tuo sondaggio'}"`,
   like: (n) => `ha messo like a "${n.pollTitle || 'il tuo sondaggio'}"`,
   comment: (n) => `ha commentato "${n.pollTitle || 'il tuo sondaggio'}"`,
@@ -14,6 +15,11 @@ const NOTIF_MESSAGES = {
 };
 
 const NOTIF_ICONS = {
+  followRequest: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  ),
   follow: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -75,10 +81,11 @@ function NotifSkeleton() {
 }
 
 function Notifications() {
-  const { user } = useAuth();
+  const { user, acceptFollowRequest, rejectFollowRequest } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [requestActions, setRequestActions] = useState({}); // { [notifId]: 'accepted'|'rejected'|'loading' }
 
   // Real-time listener sulle notifiche
   useEffect(() => {
@@ -94,6 +101,16 @@ function Notifications() {
       const notifs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
       setNotifications(notifs);
       setLoading(false);
+
+      // Marca automaticamente tutte come lette all'apertura della pagina
+      const unread = snapshot.docs.filter(d => !d.data().read);
+      if (unread.length > 0) {
+        const batch = writeBatch(db);
+        unread.forEach(d => {
+          batch.update(doc(db, 'users', user.uid, 'notifications', d.id), { read: true });
+        });
+        batch.commit().catch(() => {});
+      }
     }, (err) => {
       console.error('[QPe] Errore notifiche:', err);
       setLoading(false);
@@ -203,12 +220,14 @@ function Notifications() {
             const getMessage = NOTIF_MESSAGES[notif.type];
             const icon = NOTIF_ICONS[notif.type];
 
+            const action = requestActions[notif.id];
+
             return (
               <li
                 key={notif.id}
                 className={`notif-item stagger-item ${!notif.read ? 'unread' : ''}`}
                 style={{ animationDelay: `${Math.min(i * 0.04, 0.4)}s` }}
-                onClick={() => handleNotifClick(notif)}
+                onClick={() => notif.type !== 'followRequest' && handleNotifClick(notif)}
               >
                 <div className={`notif-icon notif-icon-${notif.type}`}>
                   {icon}
@@ -219,6 +238,35 @@ function Notifications() {
                     {getMessage ? getMessage(notif) : 'ha interagito'}
                   </p>
                   <span className="notif-time">{timeAgo(notif.createdAt)}</span>
+                  {notif.type === 'followRequest' && (
+                    <div className="notif-fr-actions">
+                      {!action && (
+                        <>
+                          <button
+                            className="notif-fr-btn accept"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setRequestActions(p => ({ ...p, [notif.id]: 'loading' }));
+                              await acceptFollowRequest(notif.fromUid);
+                              setRequestActions(p => ({ ...p, [notif.id]: 'accepted' }));
+                            }}
+                          >Accetta</button>
+                          <button
+                            className="notif-fr-btn reject"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setRequestActions(p => ({ ...p, [notif.id]: 'loading' }));
+                              await rejectFollowRequest(notif.fromUid);
+                              setRequestActions(p => ({ ...p, [notif.id]: 'rejected' }));
+                            }}
+                          >Rifiuta</button>
+                        </>
+                      )}
+                      {action === 'loading' && <span className="notif-fr-status">...</span>}
+                      {action === 'accepted' && <span className="notif-fr-status accepted">Accettato</span>}
+                      {action === 'rejected' && <span className="notif-fr-status rejected">Rifiutato</span>}
+                    </div>
+                  )}
                 </div>
                 {!notif.read && <div className="notif-dot" />}
               </li>

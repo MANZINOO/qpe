@@ -8,10 +8,10 @@ Tutte le attività del progetto. Le attività completate sono archiviate nella s
 
 ### Feature
 - [ ] Swipe verticale tra sondaggi (stile reel, mobile)
-- [ ] Infinite scroll / paginazione avanzata nel feed
+- [x] Infinite scroll / paginazione avanzata nel feed
 - [ ] Approvazione follow (profilo privato)
 - [ ] Algoritmo di raccomandazione feed "Per te"
-- [ ] Notifiche push (Firebase Cloud Messaging)
+- [x] Notifiche push (Firebase Cloud Messaging)
 
 ### Business
 - [ ] Pagina `/advertise` per inserzionisti (media kit, prezzi, contatti)

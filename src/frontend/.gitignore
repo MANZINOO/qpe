@@ -1,5 +1,8 @@
 # Environment variables — MAI committare su GitHub
 .env
+
+# Service worker generato da vite.config.js (contiene config Firebase)
+public/firebase-messaging-sw.js
 .env.local
 .env.production
 

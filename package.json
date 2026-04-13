@@ -1,0 +1,14 @@
+{
+  "name": "qpe",
+  "version": "0.5.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix src/frontend run dev",
+    "build": "npm --prefix src/frontend run build",
+    "deploy": "npm run build && firebase deploy",
+    "deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "deploy:functions": "cd functions && npm install && cd .. && firebase deploy --only functions",
+    "deploy:rules": "firebase deploy --only firestore,storage",
+    "functions:install": "cd functions && npm install"
+  }
+}

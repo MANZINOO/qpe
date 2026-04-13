@@ -205,7 +205,10 @@ function Search() {
                   )}
                 </div>
                 <div className="search-user-info">
-                  <span className="search-username">@{u.username}</span>
+                  <span className="search-username">
+                    @{u.username}
+                    {u.uid === user?.uid && <span className="search-you-badge">sei tu!</span>}
+                  </span>
                   {u.bio && <span className="search-bio">{u.bio}</span>}
                 </div>
                 <div className="search-user-meta">

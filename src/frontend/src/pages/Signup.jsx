@@ -17,6 +17,7 @@ function Signup() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [isPrivate, setIsPrivate] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signup, loginWithGoogle, updateUserProfile } = useAuth();
@@ -58,9 +59,9 @@ function Signup() {
 
     try {
       await signup(email, password, username);
-      if (selectedCategories.length > 0) {
-        await updateUserProfile({ categories: selectedCategories });
-      }
+      const profileUpdate = { isPrivate };
+      if (selectedCategories.length > 0) profileUpdate.categories = selectedCategories;
+      await updateUserProfile(profileUpdate);
       navigate('/');
     } catch (err) {
       if (err.code === 'auth/email-already-in-use') {
@@ -185,8 +186,40 @@ function Signup() {
 
         {step === 2 && (
           <div className="categories-step">
+            {/* Scelta visibilità profilo */}
+            <div className="privacy-choice">
+              <p className="categories-intro" style={{ marginBottom: 12 }}>
+                Come vuoi che sia il tuo profilo?
+              </p>
+              <div className="privacy-choice-options">
+                <button
+                  className={`privacy-option ${!isPrivate ? 'selected' : ''}`}
+                  onClick={() => setIsPrivate(false)}
+                  type="button"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                  <span><strong>Pubblico</strong><br /><small>Chiunque può seguirti</small></span>
+                </button>
+                <button
+                  className={`privacy-option ${isPrivate ? 'selected' : ''}`}
+                  onClick={() => setIsPrivate(true)}
+                  type="button"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span><strong>Privato</strong><br /><small>Approvi i follower</small></span>
+                </button>
+              </div>
+            </div>
+
             <p className="categories-intro">
-              Scegli le categorie che ti interessano per personalizzare il tuo feed.
+              Scegli le categorie che ti interessano.
               Puoi cambiarle in qualsiasi momento.
             </p>
 

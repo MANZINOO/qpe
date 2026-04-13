@@ -258,6 +258,50 @@
   margin-top: 4px;
 }
 
+.privacy-choice {
+  margin-bottom: 24px;
+}
+
+.privacy-choice-options {
+  display: flex;
+  gap: 10px;
+}
+
+.privacy-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font);
+  color: var(--text);
+  transition: all 0.15s;
+}
+
+.privacy-option:hover {
+  border-color: var(--accent);
+}
+
+.privacy-option.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.privacy-option span {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.privacy-option small {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .categories-intro {
   font-size: 14px;
   color: var(--text-secondary);

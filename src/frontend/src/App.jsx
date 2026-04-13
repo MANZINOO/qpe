@@ -2,9 +2,23 @@ import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { ToastProvider } from './context/ToastContext';
+import { ToastProvider, useToast } from './context/ToastContext';
 import { initConsentSystem } from './utils/cookieConsent';
+import { onForegroundMessage } from './utils/fcm';
 import CookieBanner from './components/CookieBanner';
+
+// Mostra un toast quando arriva una notifica push con l'app aperta
+function FcmForegroundHandler() {
+  const toast = useToast();
+  useEffect(() => {
+    const unsub = onForegroundMessage(payload => {
+      const n = payload.notification || payload.data || {};
+      toast.info(`${n.title || 'QPé'}: ${n.body || ''}`);
+    });
+    return unsub;
+  }, [toast]);
+  return null;
+}
 import Footer from './components/Footer';
 import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
@@ -33,6 +47,7 @@ function App() {
       <Router>
         <AuthProvider>
           <ToastProvider>
+            <FcmForegroundHandler />
             <div className="app">
               <Routes>
                 <Route path="/" element={<Home />} />

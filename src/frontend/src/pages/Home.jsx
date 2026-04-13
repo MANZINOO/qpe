@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
 import {
   collection, query, orderBy, limit, getDocs,
-  where, onSnapshot, Timestamp
+  where, onSnapshot, Timestamp, startAfter
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import './Home.css';
+
+const PAGE_SIZE = 12;
 
 // Skeleton per le card del feed
 function FeedSkeleton() {
@@ -33,7 +34,6 @@ function FeedSkeleton() {
 
 function Home() {
   const { user, userProfile, loading: authLoading } = useAuth();
-  const { theme, toggleTheme } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -44,9 +44,16 @@ function Home() {
   const activeTab = !user && !authLoading ? 'tendenze' : tab;
   // Cache per i tre tab (non per il filtro hashtag)
   const [pollsCache, setPollsCache] = useState({ tutti: null, seguiti: null, tendenze: null });
+  // Cursori Firestore e flag "ci sono altri" per ogni tab
+  const [lastDocCache, setLastDocCache] = useState({ tutti: null, seguiti: null, tendenze: null });
+  const [hasMoreCache, setHasMoreCache] = useState({ tutti: true, seguiti: true, tendenze: true });
   // Risultati per filtro hashtag (non cachati)
   const [tagPolls, setTagPolls] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingMoreRef = useRef(false);
+  const loadingInitialRef = useRef({ tutti: false, seguiti: false, tendenze: false });
+  const sentinelRef = useRef(null);
   const [unreadNotifs, setUnreadNotifs] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
 
@@ -85,6 +92,8 @@ function Home() {
   const followingKey = userProfile?.following?.join(',') || '';
   useEffect(() => {
     setPollsCache(prev => ({ ...prev, seguiti: null }));
+    setLastDocCache(prev => ({ ...prev, seguiti: null }));
+    setHasMoreCache(prev => ({ ...prev, seguiti: true }));
   }, [followingKey]);
 
   // ── Carica polls per filtro hashtag ──
@@ -141,13 +150,25 @@ function Home() {
     }
   }, [activeTab, pollsCache.tutti, pollsCache.seguiti, pollsCache.tendenze, authLoading, activeTag]);
 
-  async function loadPolls() {
-    setLoading(true);
+  async function loadPolls(isLoadMore = false) {
+    if (isLoadMore) {
+      // Aspetta che il caricamento iniziale sia completato (cursore disponibile)
+      if (loadingMoreRef.current || !hasMoreCache[activeTab] || !lastDocCache[activeTab]) return;
+      loadingMoreRef.current = true;
+      setLoadingMore(true);
+    } else {
+      // Evita doppio avvio del caricamento iniziale (race condition con re-render)
+      if (loadingInitialRef.current[activeTab]) return;
+      loadingInitialRef.current[activeTab] = true;
+      setLoading(true);
+    }
+
     try {
       let q;
+      const lastDoc = isLoadMore ? lastDocCache[activeTab] : null;
 
       if (activeTab === 'tendenze') {
-        // Ultimi 7 giorni, sort client-side per totalVotes
+        // Tendenze: singola fetch grossa, sort client-side — niente paginazione
         const sevenDaysAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
         q = query(
           collection(db, 'polls'),
@@ -156,32 +177,72 @@ function Home() {
         );
       } else if (activeTab === 'seguiti' && userProfile?.following?.length > 0) {
         const followingSlice = userProfile.following.slice(0, 30);
-        q = query(
-          collection(db, 'polls'),
+        const constraints = [
           where('authorId', 'in', followingSlice),
           orderBy('createdAt', 'desc'),
-          limit(30)
-        );
+        ];
+        if (lastDoc) constraints.push(startAfter(lastDoc));
+        constraints.push(limit(PAGE_SIZE));
+        q = query(collection(db, 'polls'), ...constraints);
       } else {
-        q = query(collection(db, 'polls'), orderBy('createdAt', 'desc'), limit(30));
+        const constraints = [orderBy('createdAt', 'desc')];
+        if (lastDoc) constraints.push(startAfter(lastDoc));
+        constraints.push(limit(PAGE_SIZE));
+        q = query(collection(db, 'polls'), ...constraints);
       }
 
       const snapshot = await getDocs(q);
       let pollsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
       if (activeTab === 'tendenze') {
-        // Sort per voti decrescenti
         pollsData = pollsData.sort((a, b) => (b.totalVotes || 0) - (a.totalVotes || 0));
       }
 
-      setPollsCache(prev => ({ ...prev, [activeTab]: pollsData }));
+      const newLastDoc = snapshot.docs[snapshot.docs.length - 1] ?? null;
+      const hasMore = activeTab !== 'tendenze' && snapshot.docs.length === PAGE_SIZE;
+
+      setLastDocCache(prev => ({ ...prev, [activeTab]: newLastDoc }));
+      setHasMoreCache(prev => ({ ...prev, [activeTab]: hasMore }));
+
+      if (isLoadMore) {
+        setPollsCache(prev => {
+          const existing = prev[activeTab] || [];
+          const existingIds = new Set(existing.map(p => p.id));
+          const fresh = pollsData.filter(p => !existingIds.has(p.id));
+          return { ...prev, [activeTab]: [...existing, ...fresh] };
+        });
+      } else {
+        // Deduplicazione anche per il caricamento iniziale (Strict Mode / doppio fetch)
+        const seen = new Set();
+        const unique = pollsData.filter(p => !seen.has(p.id) && seen.add(p.id));
+        setPollsCache(prev => ({ ...prev, [activeTab]: unique }));
+      }
     } catch (err) {
       console.error('[QPe] Errore caricamento poll:', err.code, err.message);
-      setPollsCache(prev => ({ ...prev, [activeTab]: [] }));
+      if (!isLoadMore) setPollsCache(prev => ({ ...prev, [activeTab]: [] }));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+      loadingMoreRef.current = false;
+      loadingInitialRef.current[activeTab] = false;
     }
   }
+
+  // ── IntersectionObserver per infinite scroll ──
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !activeTag) {
+          loadPolls(true);
+        }
+      },
+      { rootMargin: '300px' }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, activeTag, hasMoreCache[activeTab]]);
 
   function handleTabChange(newTab) {
     // Rimuove eventuale filtro hashtag quando si cambia tab
@@ -209,27 +270,6 @@ function Home() {
           <img src="/qpe_logo.svg" alt="QPe" className="header-logo-img" />
         </h1>
         <div className="header-right">
-          {/* Theme toggle */}
-          <button className="theme-toggle" onClick={toggleTheme} title={theme === 'dark' ? 'Tema chiaro' : 'Tema scuro'}>
-            {theme === 'dark' ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="5" />
-                <line x1="12" y1="1" x2="12" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="23" />
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                <line x1="1" y1="12" x2="3" y2="12" />
-                <line x1="21" y1="12" x2="23" y2="12" />
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-              </svg>
-            ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              </svg>
-            )}
-          </button>
-
           {!authLoading && (
             user ? (
               <>
@@ -247,13 +287,7 @@ function Home() {
                     <span className="header-notif-badge">{unreadMessages > 9 ? '9+' : unreadMessages}</span>
                   )}
                 </Link>
-                <Link to="/create" className="header-create header-icon-btn" title="Crea sondaggio">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                    <line x1="12" y1="8" x2="12" y2="16" />
-                    <line x1="8" y1="12" x2="16" y2="12" />
-                  </svg>
-                </Link>
+
                 <Link to="/notifications" className="header-notif header-icon-btn" title="Notifiche">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -364,13 +398,28 @@ function Home() {
           <div className="feed-grid">
             {polls.map((poll, index) => {
               const tags = getPollTags(poll);
+              const pollIds = polls.map(p => p.id);
               return (
-                <Link to={`/poll/${poll.id}`} key={poll.id} className="poll-card stagger-item" style={{ animationDelay: `${Math.min(index * 0.04, 0.4)}s` }}>
-                  <div className="poll-card-top" style={{ backgroundColor: poll.optionA?.color || '#333' }}>
+                <Link
+                  to={`/poll/${poll.id}`}
+                  state={{ pollIds, currentIndex: index }}
+                  key={poll.id}
+                  className="poll-card stagger-item"
+                  style={{ animationDelay: `${Math.min(index * 0.04, 0.4)}s` }}
+                >
+                  <div className="poll-card-top" style={{
+                    backgroundColor: poll.optionA?.color || '#333',
+                    ...(poll.optionA?.image && { backgroundImage: `url(${poll.optionA.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
+                  }}>
+                    {poll.optionA?.image && <div className="poll-card-img-overlay" />}
                     <span>{poll.optionA?.text}</span>
                   </div>
                   <div className="poll-card-line" />
-                  <div className="poll-card-bottom" style={{ backgroundColor: poll.optionB?.color || '#666' }}>
+                  <div className="poll-card-bottom" style={{
+                    backgroundColor: poll.optionB?.color || '#666',
+                    ...(poll.optionB?.image && { backgroundImage: `url(${poll.optionB.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
+                  }}>
+                    {poll.optionB?.image && <div className="poll-card-img-overlay" />}
                     <span>{poll.optionB?.text}</span>
                   </div>
                   <div className="poll-card-footer">
@@ -410,6 +459,16 @@ function Home() {
           </div>
         )}
       </section>
+
+      {/* Sentinel per infinite scroll + spinner "carica altri" */}
+      {!activeTag && !loading && (
+        <div ref={sentinelRef} style={{ height: 1 }} />
+      )}
+      {loadingMore && (
+        <div className="feed-load-more-spinner">
+          <span className="feed-spinner" />
+        </div>
+      )}
 
       {/* FAB - solo desktop, su mobile usa BottomNav */}
       {user && (

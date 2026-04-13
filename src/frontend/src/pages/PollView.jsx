@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { doc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, increment, collection, addDoc, getDocs, orderBy, query, serverTimestamp, where, limit } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -12,8 +12,39 @@ function PollView() {
   const { id } = useParams();
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const [, setSearchParams] = useSearchParams();
+
+  // Navigazione swipe tra sondaggi
+  const pollIds = location.state?.pollIds || [];
+  const currentIndex = pollIds.indexOf(id);
+  const prevId = currentIndex > 0 ? pollIds[currentIndex - 1] : null;
+  const nextId = currentIndex >= 0 && currentIndex < pollIds.length - 1 ? pollIds[currentIndex + 1] : null;
+
+  const goToPoll = useCallback((targetId) => {
+    navigate(`/poll/${targetId}`, { state: location.state });
+  }, [navigate, location.state]);
+
+  // Swipe touch
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }
+
+  function handleTouchEnd(e) {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
+    if (dx < 0 && nextId) goToPoll(nextId);   // swipe sinistra → prossimo
+    if (dx > 0 && prevId) goToPoll(prevId);   // swipe destra  → precedente
+  }
 
   const [poll, setPoll] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -207,10 +238,12 @@ function PollView() {
       } else {
         // --- VOTA ---
         const username = userProfile?.username || user.displayName || 'Anonimo';
+        const isFirstVote = !(poll.firstVoters || []).includes(user.uid);
         await updateDoc(pollRef, {
           [`option${choice}.votes`]: increment(1),
           totalVotes: increment(1),
-          voters: arrayUnion({ uid: user.uid, username, choice, votedAt: new Date().toISOString() })
+          voters: arrayUnion({ uid: user.uid, username, choice, votedAt: new Date().toISOString() }),
+          ...(isFirstVote && { firstVoters: arrayUnion(user.uid) })
         });
 
         setPoll(prev => ({
@@ -218,13 +251,14 @@ function PollView() {
           optionA: { ...prev.optionA, votes: prev.optionA.votes + (choice === 'A' ? 1 : 0) },
           optionB: { ...prev.optionB, votes: prev.optionB.votes + (choice === 'B' ? 1 : 0) },
           totalVotes: (prev.totalVotes || 0) + 1,
-          voters: [...(prev.voters || []), { uid: user.uid, username, choice }]
+          voters: [...(prev.voters || []), { uid: user.uid, username, choice }],
+          firstVoters: isFirstVote ? [...(prev.firstVoters || []), user.uid] : (prev.firstVoters || [])
         }));
         setHasVoted(true);
         setVotedOption(choice);
 
-        // Notifica l'autore del sondaggio
-        if (poll.authorId) {
+        // Notifica l'autore solo al primo voto di questo utente su questo sondaggio
+        if (poll.authorId && isFirstVote) {
           createNotification(poll.authorId, {
             type: 'vote',
             fromUid: user.uid,
@@ -564,7 +598,7 @@ function PollView() {
   const likers = poll.likes || [];
 
   return (
-    <div className="pollview-page page-enter">
+    <div className="pollview-page page-enter" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Header */}
       <div className="pollview-header">
         <Link to="/" className="pollview-back">
@@ -597,6 +631,22 @@ function PollView() {
           ))}
         </div>
       </div>
+
+      {/* Frecce navigazione desktop */}
+      {prevId && (
+        <button className="pollview-nav-arrow pollview-nav-prev" onClick={() => goToPoll(prevId)} title="Sondaggio precedente">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+      )}
+      {nextId && (
+        <button className="pollview-nav-arrow pollview-nav-next" onClick={() => goToPoll(nextId)} title="Sondaggio successivo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      )}
 
       {/* Question */}
       <div className="pollview-question">
@@ -631,11 +681,15 @@ function PollView() {
       <div className="pollview-coupe">
         <button
           className={`coupe-half coupe-top ${hasVoted ? 'voted' : ''} ${votedOption === 'A' ? 'chosen' : ''} ${isAuthor ? 'no-vote' : ''}`}
-          style={{ backgroundColor: poll.optionA.color }}
+          style={{
+            backgroundColor: poll.optionA.color,
+            ...(poll.optionA.image && { backgroundImage: `url(${poll.optionA.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
+          }}
           onClick={() => handleVote('A')}
           disabled={voting || isAuthor}
           title={votedOption === 'A' ? 'Clicca per annullare il voto' : ''}
         >
+          {poll.optionA.image && <div className="coupe-img-overlay" />}
           <span className="coupe-text">{poll.optionA.text}</span>
           {hasVoted && (
             <div className="coupe-result">
@@ -653,11 +707,15 @@ function PollView() {
 
         <button
           className={`coupe-half coupe-bottom ${hasVoted ? 'voted' : ''} ${votedOption === 'B' ? 'chosen' : ''} ${isAuthor ? 'no-vote' : ''}`}
-          style={{ backgroundColor: poll.optionB.color }}
+          style={{
+            backgroundColor: poll.optionB.color,
+            ...(poll.optionB.image && { backgroundImage: `url(${poll.optionB.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
+          }}
           onClick={() => handleVote('B')}
           disabled={voting || isAuthor}
           title={votedOption === 'B' ? 'Clicca per annullare il voto' : ''}
         >
+          {poll.optionB.image && <div className="coupe-img-overlay" />}
           <span className="coupe-text">{poll.optionB.text}</span>
           {hasVoted && (
             <div className="coupe-result">

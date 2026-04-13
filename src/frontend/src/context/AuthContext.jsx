@@ -7,9 +7,10 @@ import {
   signOut,
   updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, writeBatch, deleteField } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
 import { createNotification } from '../utils/notifications';
+import { registerFcmToken } from '../utils/fcm';
 
 const AuthContext = createContext(null);
 
@@ -50,6 +51,10 @@ export function AuthProvider({ children }) {
             setUserProfile(newProfile);
           } else {
             setUserProfile(profile);
+          }
+          // Registra/aggiorna token FCM se il permesso è già stato concesso
+          if (Notification?.permission === 'granted') {
+            registerFcmToken(firebaseUser.uid);
           }
         }).catch((err) => {
           console.warn('[QPe] Errore caricamento profilo:', err.message);
@@ -154,54 +159,94 @@ export function AuthProvider({ children }) {
       await updateDoc(doc(db, 'users', user.uid), data);
       const updated = await getUserProfile(user.uid);
       setUserProfile(updated);
+
+      // Propaga username e/o avatar a tutti i sondaggi dell'utente
+      const pollUpdate = {};
+      if (data.username !== undefined) pollUpdate.authorUsername = data.username;
+      if (data.avatar !== undefined) pollUpdate.authorAvatar = data.avatar;
+      if (Object.keys(pollUpdate).length > 0) {
+        const snap = await getDocs(query(collection(db, 'polls'), where('authorId', '==', user.uid)));
+        if (!snap.empty) {
+          const batch = writeBatch(db);
+          snap.docs.forEach(d => batch.update(d.ref, pollUpdate));
+          await batch.commit();
+        }
+      }
+
       return updated;
     } catch (err) {
       console.warn('[QPe] Errore aggiornamento profilo:', err.message);
-      // Aggiorna localmente
       const updated = { ...userProfile, ...data };
       setUserProfile(updated);
       return updated;
     }
   }
 
-  // Segui un utente
+  // Segui un utente (o invia richiesta se profilo privato)
   async function followUser(targetUid) {
     if (!user || user.uid === targetUid) return;
-    // Senza try/catch: l'errore si propaga a chi chiama, così la UI non aggiorna se Firestore fallisce
-    await updateDoc(doc(db, 'users', user.uid), {
-      following: arrayUnion(targetUid)
-    });
-    await updateDoc(doc(db, 'users', targetUid), {
-      followers: arrayUnion(user.uid)
-    });
-    // Notifica il target che qualcuno lo ha seguito
+    const targetSnap = await getDoc(doc(db, 'users', targetUid));
+    const targetData = targetSnap.data();
     const username = userProfile?.username || user.displayName || 'Utente';
-    createNotification(targetUid, {
-      type: 'follow',
-      fromUid: user.uid,
-      fromUsername: username
-    });
-    setUserProfile(prev => {
-      if (!prev) return prev;
-      const following = prev.following || [];
-      if (following.includes(targetUid)) return prev;
-      return { ...prev, following: [...following, targetUid] };
-    });
+
+    if (targetData?.isPrivate) {
+      // Profilo privato → invia richiesta
+      await updateDoc(doc(db, 'users', targetUid), {
+        followRequests: arrayUnion(user.uid)
+      });
+      createNotification(targetUid, {
+        type: 'followRequest',
+        fromUid: user.uid,
+        fromUsername: username
+      });
+    } else {
+      // Profilo pubblico → segui direttamente
+      await updateDoc(doc(db, 'users', user.uid), { following: arrayUnion(targetUid) });
+      await updateDoc(doc(db, 'users', targetUid), { followers: arrayUnion(user.uid) });
+      createNotification(targetUid, { type: 'follow', fromUid: user.uid, fromUsername: username });
+      setUserProfile(prev => {
+        if (!prev) return prev;
+        const following = prev.following || [];
+        if (following.includes(targetUid)) return prev;
+        return { ...prev, following: [...following, targetUid] };
+      });
+    }
   }
 
-  // Smetti di seguire un utente
+  // Smetti di seguire un utente (o annulla la richiesta pendente)
   async function unfollowUser(targetUid) {
     if (!user || user.uid === targetUid) return;
-    await updateDoc(doc(db, 'users', user.uid), {
-      following: arrayRemove(targetUid)
-    });
+    // Rimuovi da followRequests (nel caso fosse ancora pendente)
     await updateDoc(doc(db, 'users', targetUid), {
+      followRequests: arrayRemove(user.uid),
       followers: arrayRemove(user.uid)
     });
+    await updateDoc(doc(db, 'users', user.uid), { following: arrayRemove(targetUid) });
     setUserProfile(prev => ({
       ...prev,
       following: (prev.following || []).filter(f => f !== targetUid)
     }));
+  }
+
+  // Accetta una richiesta di follow
+  async function acceptFollowRequest(fromUid) {
+    if (!user) return;
+    await updateDoc(doc(db, 'users', user.uid), {
+      followRequests: arrayRemove(fromUid),
+      followers: arrayUnion(fromUid)
+    });
+    await updateDoc(doc(db, 'users', fromUid), { following: arrayUnion(user.uid) });
+    // Notifica chi ha fatto la richiesta che è stato accettato
+    const username = userProfile?.username || user.displayName || 'Utente';
+    createNotification(fromUid, { type: 'follow', fromUid: user.uid, fromUsername: username });
+  }
+
+  // Rifiuta una richiesta di follow
+  async function rejectFollowRequest(fromUid) {
+    if (!user) return;
+    await updateDoc(doc(db, 'users', user.uid), {
+      followRequests: arrayRemove(fromUid)
+    });
   }
 
   // Ricarica profilo dal server
@@ -213,6 +258,11 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn('[QPe] Errore refresh profilo:', err.message);
     }
+  }
+
+  function enablePushNotifications() {
+    if (!user) return Promise.resolve();
+    return registerFcmToken(user.uid);
   }
 
   const value = {
@@ -227,7 +277,10 @@ export function AuthProvider({ children }) {
     getUserProfile,
     followUser,
     unfollowUser,
-    refreshProfile
+    refreshProfile,
+    enablePushNotifications,
+    acceptFollowRequest,
+    rejectFollowRequest,
   };
 
   return (
