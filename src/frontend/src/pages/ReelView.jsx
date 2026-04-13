@@ -68,7 +68,7 @@ function ReelCard({ poll, votedChoice, onVote, navigate, userId }) {
 
       {/* Footer */}
       <div className="reel-footer">
-        <Link to={`/u/${poll.authorId}`} className="reel-author" onClick={e => e.stopPropagation()}>
+        <Link to={`/u/${poll.authorId}`} state={{ from: 'reel' }} className="reel-author" onClick={e => e.stopPropagation()}>
           <div className="reel-avatar">
             {poll.authorAvatar
               ? <img src={poll.authorAvatar} alt="" />
