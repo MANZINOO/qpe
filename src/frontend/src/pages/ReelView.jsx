@@ -98,6 +98,7 @@ function ReelView() {
   const lastDocRef = useRef(null);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
+  const votingRef = useRef({}); // { pollId: true } — blocca doppi tap
   const sentinelRef = useRef(null);
 
   useEffect(() => { loadPolls(); }, []);
@@ -160,6 +161,8 @@ function ReelView() {
 
   async function handleVote(poll, choice) {
     if (!user) { navigate('/login'); return; }
+    if (votingRef.current[poll.id]) return; // blocca doppi tap
+    votingRef.current[poll.id] = true;
 
     const currentVote = votes[poll.id];
     const username = userProfile?.username || user.displayName || 'anonimo';
@@ -188,9 +191,10 @@ function ReelView() {
           totalVotes: increment(-1),
         });
       } catch (err) {
-        // Rollback
         setVotes(prev => ({ ...prev, [poll.id]: choice }));
         console.error('[QPe] Unvote error:', err);
+      } finally {
+        delete votingRef.current[poll.id];
       }
       return;
     }
@@ -217,6 +221,8 @@ function ReelView() {
     } catch (err) {
       setVotes(prev => { const n = { ...prev }; delete n[poll.id]; return n; });
       console.error('[QPe] Vote error:', err);
+    } finally {
+      delete votingRef.current[poll.id];
     }
   }
 
