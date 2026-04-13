@@ -26,6 +26,7 @@ function Settings() {
   // Stato form profilo
   const [username, setUsername] = useState(userProfile?.username || user?.displayName || '');
   const [bio, setBio] = useState(userProfile?.bio || '');
+  const [isPrivate, setIsPrivate] = useState(userProfile?.isPrivate || false);
   const [savingProfile, setSavingProfile] = useState(false);
 
   // Stato avatar upload
@@ -217,12 +218,12 @@ function Settings() {
     }
   }
 
-  // Salvataggio profilo (username + bio)
+  // Salvataggio profilo (username + bio + isPrivate)
   async function handleSaveProfile() {
     if (!username.trim()) return;
     setSavingProfile(true);
     try {
-      await updateUserProfile({ username: username.trim(), bio: bio.trim() });
+      await updateUserProfile({ username: username.trim(), bio: bio.trim(), isPrivate });
       toast.success('Profilo aggiornato!');
     } catch (err) {
       toast.error('Errore nel salvataggio. Riprova.');
@@ -422,6 +423,18 @@ function Settings() {
                 <span style={{ display: 'block', textAlign: 'right', fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                   {bio.length}/160
                 </span>
+              </div>
+              <div className="toggle-row" style={{ marginBottom: 20 }}>
+                <div>
+                  <span>Profilo privato</span>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>
+                    {isPrivate ? 'Solo i tuoi follower approvati vedono i tuoi sondaggi' : 'Il tuo profilo è visibile a tutti'}
+                  </p>
+                </div>
+                <label className="switch">
+                  <input type="checkbox" checked={isPrivate} onChange={e => setIsPrivate(e.target.checked)} />
+                  <span className="slider"></span>
+                </label>
               </div>
               <button
                 className="btn-save-settings"

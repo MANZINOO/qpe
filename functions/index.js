@@ -40,6 +40,10 @@ exports.sendPushOnNotification = onDocumentCreated(
           title = 'Nuovo follower!';
           body = `${notif.fromUsername} ha iniziato a seguirti`;
           break;
+        case 'followRequest':
+          title = 'Richiesta di follow';
+          body = `${notif.fromUsername} vuole seguirti`;
+          break;
         case 'like':
           title = 'Mi piace!';
           body = `${notif.fromUsername} ha messo like al tuo sondaggio`;
