@@ -5,12 +5,14 @@ import {
   collection, query, orderBy, limit, getDocs,
   startAfter, doc, updateDoc, getDoc, arrayUnion, increment
 } from 'firebase/firestore';
+import { createNotification } from '../utils/notifications';
 import { db } from '../firebase';
 import './ReelView.css';
 
 const PAGE_SIZE = 10;
 
-function ReelCard({ poll, votedChoice, onVote, navigate }) {
+function ReelCard({ poll, votedChoice, onVote, navigate, userId }) {
+  const isAuthor = poll.authorId === userId;
   const totalVotes = (poll.optionA?.votes || 0) + (poll.optionB?.votes || 0);
   const percA = totalVotes > 0 ? Math.round((poll.optionA.votes / totalVotes) * 100) : 50;
   const percB = 100 - percA;
@@ -19,12 +21,12 @@ function ReelCard({ poll, votedChoice, onVote, navigate }) {
     <div className="reel-card">
       {/* Opzione A */}
       <div
-        className={`reel-half reel-half-a ${votedChoice ? 'voted' : ''} ${votedChoice === 'A' ? 'chosen' : ''}`}
+        className={`reel-half reel-half-a ${votedChoice ? 'voted' : ''} ${votedChoice === 'A' ? 'chosen' : ''} ${isAuthor ? 'author' : ''}`}
         style={{
           backgroundColor: poll.optionA?.color || '#333',
           ...(poll.optionA?.image && { backgroundImage: `url(${poll.optionA.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
         }}
-        onClick={() => (!votedChoice || votedChoice === 'A') && onVote(poll, 'A')}
+        onClick={() => !isAuthor && (!votedChoice || votedChoice === 'A') && onVote(poll, 'A')}
       >
         {poll.optionA?.image && <div className="reel-img-overlay" />}
         {votedChoice ? (
@@ -45,12 +47,12 @@ function ReelCard({ poll, votedChoice, onVote, navigate }) {
 
       {/* Opzione B */}
       <div
-        className={`reel-half reel-half-b ${votedChoice ? 'voted' : ''} ${votedChoice === 'B' ? 'chosen' : ''}`}
+        className={`reel-half reel-half-b ${votedChoice ? 'voted' : ''} ${votedChoice === 'B' ? 'chosen' : ''} ${isAuthor ? 'author' : ''}`}
         style={{
           backgroundColor: poll.optionB?.color || '#666',
           ...(poll.optionB?.image && { backgroundImage: `url(${poll.optionB.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
         }}
-        onClick={() => (!votedChoice || votedChoice === 'B') && onVote(poll, 'B')}
+        onClick={() => !isAuthor && (!votedChoice || votedChoice === 'B') && onVote(poll, 'B')}
       >
         {poll.optionB?.image && <div className="reel-img-overlay" />}
         {votedChoice ? (
@@ -98,6 +100,7 @@ function ReelView() {
   const lastDocRef = useRef(null);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
+  const loadingInitialRef = useRef(false);
   const votingRef = useRef({}); // { pollId: true } — blocca doppi tap
   const sentinelRef = useRef(null);
 
@@ -116,9 +119,13 @@ function ReelView() {
   }, [polls.length]);
 
   async function loadPolls(isMore = false) {
-    if (loadingMoreRef.current || (!isMore && !loading)) return;
-    if (isMore && !hasMoreRef.current) return;
-    loadingMoreRef.current = true;
+    if (isMore) {
+      if (loadingMoreRef.current || !hasMoreRef.current) return;
+      loadingMoreRef.current = true;
+    } else {
+      if (loadingInitialRef.current) return;
+      loadingInitialRef.current = true;
+    }
 
     try {
       const constraints = [orderBy('createdAt', 'desc')];
@@ -161,66 +168,69 @@ function ReelView() {
 
   async function handleVote(poll, choice) {
     if (!user) { navigate('/login'); return; }
-    if (votingRef.current[poll.id]) return; // blocca doppi tap
+    // Stesse regole di PollView: autore non può votare, blocca doppi tap
+    if (poll.authorId === user.uid) return;
+    if (votingRef.current[poll.id]) return;
     votingRef.current[poll.id] = true;
 
-    const currentVote = votes[poll.id];
-    const username = userProfile?.username || user.displayName || 'anonimo';
+    const username = userProfile?.username || user.displayName || 'Anonimo';
     const pollRef = doc(db, 'polls', poll.id);
+    const currentVote = votes[poll.id];
 
-    // ── Rimuovi voto (tap sulla stessa opzione già votata) ──
-    if (currentVote === choice) {
-      setVotes(prev => { const n = { ...prev }; delete n[poll.id]; return n; });
-      setPolls(prev => prev.map(p => {
-        if (p.id !== poll.id) return p;
-        const key = choice === 'A' ? 'optionA' : 'optionB';
-        return {
-          ...p,
-          totalVotes: Math.max(0, (p.totalVotes || 1) - 1),
-          [key]: { ...p[key], votes: Math.max(0, (p[key]?.votes || 1) - 1) },
-          voters: (p.voters || []).filter(v => v.uid !== user.uid),
-        };
-      }));
-      try {
+    try {
+      if (currentVote) {
+        // ── Annulla voto (logica identica a PollView) ──
         const snap = await getDoc(pollRef);
-        const newVoters = (snap.data()?.voters || []).filter(v => v.uid !== user.uid);
-        const voteField = choice === 'A' ? 'optionA.votes' : 'optionB.votes';
+        if (!snap.exists()) return;
+        const newVoters = (snap.data().voters || []).filter(v => v.uid !== user.uid);
         await updateDoc(pollRef, {
           voters: newVoters,
-          [voteField]: increment(-1),
           totalVotes: increment(-1),
+          [`option${currentVote}.votes`]: increment(-1),
         });
-      } catch (err) {
+        setVotes(prev => { const n = { ...prev }; delete n[poll.id]; return n; });
+        setPolls(prev => prev.map(p => {
+          if (p.id !== poll.id) return p;
+          return {
+            ...p,
+            voters: newVoters,
+            optionA: { ...p.optionA, votes: (p.optionA?.votes || 0) - (currentVote === 'A' ? 1 : 0) },
+            optionB: { ...p.optionB, votes: (p.optionB?.votes || 0) - (currentVote === 'B' ? 1 : 0) },
+            totalVotes: Math.max(0, (p.totalVotes || 1) - 1),
+          };
+        }));
+      } else {
+        // ── Vota (logica identica a PollView) ──
+        const isFirstVote = !(poll.firstVoters || []).includes(user.uid);
+        await updateDoc(pollRef, {
+          [`option${choice}.votes`]: increment(1),
+          totalVotes: increment(1),
+          voters: arrayUnion({ uid: user.uid, username, choice, votedAt: new Date().toISOString() }),
+          ...(isFirstVote && { firstVoters: arrayUnion(user.uid) }),
+        });
         setVotes(prev => ({ ...prev, [poll.id]: choice }));
-        console.error('[QPe] Unvote error:', err);
-      } finally {
-        delete votingRef.current[poll.id];
+        setPolls(prev => prev.map(p => {
+          if (p.id !== poll.id) return p;
+          return {
+            ...p,
+            optionA: { ...p.optionA, votes: (p.optionA?.votes || 0) + (choice === 'A' ? 1 : 0) },
+            optionB: { ...p.optionB, votes: (p.optionB?.votes || 0) + (choice === 'B' ? 1 : 0) },
+            totalVotes: (p.totalVotes || 0) + 1,
+            voters: [...(p.voters || []), { uid: user.uid, username, choice }],
+          };
+        }));
+        if (poll.authorId && isFirstVote) {
+          createNotification(poll.authorId, {
+            type: 'vote',
+            fromUid: user.uid,
+            fromUsername: username,
+            pollId: poll.id,
+            pollTitle: poll.title,
+          });
+        }
       }
-      return;
-    }
-
-    // ── Aggiungi voto ──
-    setVotes(prev => ({ ...prev, [poll.id]: choice }));
-    setPolls(prev => prev.map(p => {
-      if (p.id !== poll.id) return p;
-      const key = choice === 'A' ? 'optionA' : 'optionB';
-      return {
-        ...p,
-        totalVotes: (p.totalVotes || 0) + 1,
-        [key]: { ...p[key], votes: (p[key]?.votes || 0) + 1 },
-        voters: [...(p.voters || []), { uid: user.uid, username, choice }],
-      };
-    }));
-    try {
-      const voteField = choice === 'A' ? 'optionA.votes' : 'optionB.votes';
-      await updateDoc(pollRef, {
-        [voteField]: increment(1),
-        totalVotes: increment(1),
-        voters: arrayUnion({ uid: user.uid, username, choice, votedAt: new Date().toISOString() }),
-      });
     } catch (err) {
-      setVotes(prev => { const n = { ...prev }; delete n[poll.id]; return n; });
-      console.error('[QPe] Vote error:', err);
+      console.error('[QPe] Reel vote error:', err);
     } finally {
       delete votingRef.current[poll.id];
     }
@@ -264,6 +274,7 @@ function ReelView() {
               votedChoice={votes[poll.id]}
               onVote={handleVote}
               navigate={navigate}
+              userId={user?.uid}
             />
           ))
         )}

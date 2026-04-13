@@ -99,6 +99,8 @@
 
 .reel-half.voted:not(.chosen) { filter: brightness(0.65) saturate(0.6); }
 
+.reel-half.author { cursor: default; opacity: 0.9; }
+
 .reel-img-overlay {
   position: absolute;
   inset: 0;
