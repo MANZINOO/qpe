@@ -7,22 +7,23 @@ Tutte le attività del progetto. Le attività completate sono archiviate nella s
 ## In corso / Prossimi step
 
 ### Feature
-- [ ] Swipe verticale tra sondaggi (stile reel, mobile)
+- [x] Swipe verticale tra sondaggi (stile reel, mobile) → `/reel`
 - [x] Infinite scroll / paginazione avanzata nel feed
-- [ ] Approvazione follow (profilo privato)
-- [ ] Algoritmo di raccomandazione feed "Per te"
-- [x] Notifiche push (Firebase Cloud Messaging)
+- [x] Approvazione follow (profilo privato) — isPrivate, followRequests, toggle Settings
+- [x] Algoritmo di raccomandazione feed "Per te" — scoring categorie + engagement
+- [x] Notifiche push (Firebase Cloud Messaging + Cloud Functions)
+- [x] Feed privato — poll di profili privati filtrati da "Per te" e "Tendenze"
 
 ### Business
-- [ ] Pagina `/advertise` per inserzionisti (media kit, prezzi, contatti)
+- [x] Pagina `/advertise` per inserzionisti (formati, prezzi, FAQ, CTA)
 - [ ] Media kit PDF scaricabile
 - [ ] Bot moderazione automatica base
 
 ### Deploy
-- [ ] Deploy frontend su Vercel o Firebase Hosting
+- [x] Deploy frontend su Firebase Hosting (`qpe-app.web.app`)
 - [ ] Configurare dominio personalizzato (`qpe.app`)
-- [ ] Variabili d'ambiente su Vercel / Firebase
-- [ ] Regole Firebase Storage per avatar (aggiungere a `firebase.json`)
+- [x] Variabili d'ambiente su Firebase
+- [x] Regole Firebase Storage per avatar
 
 ---
 

@@ -1,0 +1,321 @@
+/* ── Reel Page ── */
+.reel-page {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+/* Header */
+.reel-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+}
+
+.reel-back-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  flex-shrink: 0;
+}
+
+.reel-back-btn:active { opacity: 0.7; }
+
+.reel-header-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: white;
+  flex: 1;
+  letter-spacing: -0.02em;
+}
+
+.reel-login-btn {
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  background: var(--accent);
+  border-radius: 20px;
+  padding: 6px 14px;
+  text-decoration: none;
+}
+
+/* Scroll container: scroll-snap */
+.reel-scroll {
+  flex: 1;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.reel-scroll::-webkit-scrollbar { display: none; }
+
+/* Singola card */
+.reel-card {
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Le due metà */
+.reel-half {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: filter 0.2s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reel-half:active:not(.voted) { filter: brightness(0.85); }
+
+.reel-half.voted { cursor: default; }
+
+.reel-half.voted:not(.chosen) { filter: brightness(0.65) saturate(0.6); }
+
+.reel-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+}
+
+.reel-option-text {
+  font-size: clamp(18px, 5vw, 28px);
+  font-weight: 800;
+  color: white;
+  text-align: center;
+  padding: 0 24px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  z-index: 1;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* Risultati dopo il voto */
+.reel-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 1;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.reel-result-perc {
+  font-size: clamp(36px, 10vw, 56px);
+  font-weight: 900;
+  color: white;
+  line-height: 1;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  letter-spacing: -0.04em;
+}
+
+.reel-result-text {
+  font-size: clamp(14px, 4vw, 18px);
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.reel-chosen-mark {
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
+  background: rgba(255,255,255,0.25);
+  border-radius: 20px;
+  padding: 3px 10px;
+  margin-top: 4px;
+  backdrop-filter: blur(4px);
+}
+
+/* Divider con titolo */
+.reel-divider {
+  height: 3px;
+  background: rgba(255,255,255,0.15);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.reel-title {
+  position: absolute;
+  background: rgba(0,0,0,0.7);
+  color: rgba(255,255,255,0.95);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 20px;
+  max-width: 80vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+  backdrop-filter: blur(8px);
+  z-index: 2;
+}
+
+/* Footer */
+.reel-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px;
+  background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 3;
+}
+
+.reel-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.reel-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  overflow: hidden;
+  border: 1.5px solid rgba(255,255,255,0.4);
+  flex-shrink: 0;
+}
+
+.reel-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.reel-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.reel-stats > span {
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.reel-detail-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.18);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 20px;
+  text-decoration: none;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.2);
+  transition: background 0.15s;
+}
+
+.reel-detail-btn:active { background: rgba(255,255,255,0.3); }
+
+/* Loading */
+.reel-loading {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reel-loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255,255,255,0.15);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: reel-spin 0.7s linear infinite;
+}
+
+.reel-loading-spinner.small {
+  width: 24px;
+  height: 24px;
+}
+
+@keyframes reel-spin {
+  to { transform: rotate(360deg); }
+}
+
+.reel-load-more {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+}
+
+.reel-empty {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: rgba(255,255,255,0.7);
+}
+
+.reel-empty button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Indicatore swipe (primo avvio) */
+@keyframes swipe-hint {
+  0%, 100% { transform: translateY(0); opacity: 0.7; }
+  50% { transform: translateY(-8px); opacity: 1; }
+}

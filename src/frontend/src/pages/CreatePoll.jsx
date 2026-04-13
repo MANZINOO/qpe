@@ -102,6 +102,7 @@ function CreatePoll() {
         authorId: user.uid,
         authorUsername: userProfile?.username || user.displayName || 'anonimo',
         authorAvatar: userProfile?.avatar || '',
+        authorIsPrivate: userProfile?.isPrivate || false,
         voters: [],
         likes: [],
         likesCount: 0,

@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
-import { auth, storage } from '../firebase';
+import { auth, storage, db } from '../firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { collection, query, where, getDocs, writeBatch, doc } from 'firebase/firestore';
 import { resizeImage } from '../utils/imageUtils';
 import CookiePreferencesManager from '../components/CookiePreferencesManager';
 import './Settings.css';
@@ -224,6 +225,17 @@ function Settings() {
     setSavingProfile(true);
     try {
       await updateUserProfile({ username: username.trim(), bio: bio.trim(), isPrivate });
+
+      // Se la privacy è cambiata, aggiorna authorIsPrivate su tutti i poll dell'utente
+      if (user && isPrivate !== (userProfile?.isPrivate || false)) {
+        const pollsSnap = await getDocs(query(collection(db, 'polls'), where('authorId', '==', user.uid)));
+        if (!pollsSnap.empty) {
+          const batch = writeBatch(db);
+          pollsSnap.docs.forEach(d => batch.update(doc(db, 'polls', d.id), { authorIsPrivate: isPrivate }));
+          await batch.commit();
+        }
+      }
+
       toast.success('Profilo aggiornato!');
     } catch (err) {
       toast.error('Errore nel salvataggio. Riprova.');

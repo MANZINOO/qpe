@@ -35,6 +35,8 @@ import Notifications from './pages/Notifications';
 import Search from './pages/Search';
 import Messages from './pages/Messages';
 import Chat from './pages/Chat';
+import ReelView from './pages/ReelView';
+import Advertise from './pages/Advertise';
 import './App.css';
 
 function App() {
@@ -64,6 +66,8 @@ function App() {
                 <Route path="/search" element={<Search />} />
                 <Route path="/messages" element={<Messages />} />
                 <Route path="/messages/:convId" element={<Chat />} />
+                <Route path="/reel" element={<ReelView />} />
+                <Route path="/advertise" element={<Advertise />} />
               </Routes>
               <BottomNav />
               <Footer />

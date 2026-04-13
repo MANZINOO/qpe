@@ -10,6 +10,25 @@ import './Home.css';
 
 const PAGE_SIZE = 12;
 
+// Scoring "Per te": più alto = più rilevante per l'utente
+function scoreForUser(poll, userCategories) {
+  let score = 0;
+  const pollTags = [...(poll.hashtags || []), poll.category].filter(Boolean).map(t => t.toLowerCase());
+  const userCats = (userCategories || []).map(c => c.toLowerCase());
+  // Match categorie
+  pollTags.forEach(t => { if (userCats.includes(t)) score += 4; });
+  // Engagement
+  score += Math.log1p(poll.totalVotes || 0) * 2;
+  score += Math.log1p(poll.likesCount || 0);
+  // Recency boost
+  const ageH = (Date.now() - (poll.createdAt?.toMillis?.() || Date.now())) / 3_600_000;
+  if (ageH < 24) score += 3;
+  else if (ageH < 72) score += 1;
+  // Piccolo rumore per non avere sempre lo stesso ordine
+  score += Math.random() * 0.5;
+  return score;
+}
+
 // Skeleton per le card del feed
 function FeedSkeleton() {
   return (
@@ -194,8 +213,16 @@ function Home() {
       const snapshot = await getDocs(q);
       let pollsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
+      // Filtra poll di profili privati (visibili solo in "seguiti")
+      if (activeTab === 'tutti' || activeTab === 'tendenze') {
+        pollsData = pollsData.filter(p => !p.authorIsPrivate);
+      }
+
       if (activeTab === 'tendenze') {
         pollsData = pollsData.sort((a, b) => (b.totalVotes || 0) - (a.totalVotes || 0));
+      } else if (activeTab === 'tutti' && user && userProfile?.categories?.length > 0) {
+        // Algoritmo "Per te": re-ordina per rilevanza utente
+        pollsData = pollsData.sort((a, b) => scoreForUser(b, userProfile.categories) - scoreForUser(a, userProfile.categories));
       }
 
       const newLastDoc = snapshot.docs[snapshot.docs.length - 1] ?? null;
@@ -273,6 +300,11 @@ function Home() {
           {!authLoading && (
             user ? (
               <>
+                <Link to="/reel" className="header-icon-btn" title="Reel">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                </Link>
                 <Link to="/search" className="header-search-btn header-icon-btn" title="Cerca">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="8" />
