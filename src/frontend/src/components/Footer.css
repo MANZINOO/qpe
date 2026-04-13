@@ -62,6 +62,13 @@
   white-space: nowrap;
 }
 
+/* Mobile: aggiungi spazio per la BottomNav */
+@media (max-width: 768px) {
+  .app-footer {
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Desktop: una riga sola */
 @media (min-width: 640px) {
   .footer-content {
