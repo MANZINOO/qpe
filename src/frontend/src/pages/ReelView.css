@@ -95,6 +95,8 @@
 
 .reel-half.voted { cursor: default; }
 
+.reel-half.voted.chosen { cursor: pointer; }
+
 .reel-half.voted:not(.chosen) { filter: brightness(0.65) saturate(0.6); }
 
 .reel-img-overlay {
