@@ -36,12 +36,18 @@
 [data-theme="light"] .userprofile-header { background: rgba(240, 237, 232, 0.88); }
 
 .userprofile-back {
+  background: none;
+  border: none;
+  cursor: pointer;
   color: var(--text-secondary);
   display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 6px;
   margin-left: -6px;
   border-radius: 50%;
   transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .userprofile-back:hover { background: var(--bg-hover); }
