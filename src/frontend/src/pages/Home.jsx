@@ -481,6 +481,9 @@ function Home() {
                       </div>
                     )}
                     <div className="poll-card-meta">
+                      {poll.voters?.some(v => v.uid === user?.uid) && (
+                        <span className="poll-card-voted-badge" title="Hai votato">&#10003;</span>
+                      )}
                       <span>{poll.totalVotes || 0} voti</span>
                       <span>{poll.likesCount || 0} &#9829;</span>
                       <span title="Visualizzazioni">
