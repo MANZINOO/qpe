@@ -353,6 +353,13 @@
   box-shadow: none;
 }
 
+/* Vista autore: mostra testo opzione insieme ai risultati */
+.coupe-half.author-view.voted .coupe-text {
+  display: block;
+  font-size: 20px;
+  margin-bottom: 6px;
+}
+
 .coupe-text {
   font-size: 28px;
   font-weight: 900;
