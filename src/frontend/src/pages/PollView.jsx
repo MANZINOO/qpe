@@ -698,7 +698,7 @@ function PollView() {
               <span className="coupe-result-votes">{poll.optionA.votes} voti</span>
             </div>
           )}
-          {votedOption === 'A' && <span className="coupe-check">&#10003;</span>}
+          {votedOption === 'A' && !isAuthor && <span className="coupe-check">&#10003;</span>}
         </button>
 
         <div className="coupe-divider">
@@ -724,7 +724,7 @@ function PollView() {
               <span className="coupe-result-votes">{poll.optionB.votes} voti</span>
             </div>
           )}
-          {votedOption === 'B' && <span className="coupe-check">&#10003;</span>}
+          {votedOption === 'B' && !isAuthor && <span className="coupe-check">&#10003;</span>}
         </button>
       </div>
 
