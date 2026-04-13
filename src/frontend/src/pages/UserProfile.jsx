@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getConvId } from '../utils/conversations';
 import { doc, getDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
@@ -10,8 +10,6 @@ function UserProfile() {
   const { uid } = useParams();
   const { user, userProfile, followUser, unfollowUser } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const backTo = location.state?.from === 'reel' ? '/reel' : '/';
 
   const [profile, setProfile] = useState(null);
   const [polls, setPolls] = useState([]);
@@ -95,11 +93,11 @@ function UserProfile() {
     return (
       <div className="userprofile-page page-enter">
         <div className="userprofile-header">
-          <Link to={backTo} className="userprofile-back">
+          <button onClick={() => navigate(-1)} className="userprofile-back">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-          </Link>
+          </button>
           <div className="skeleton skeleton-text" style={{ width: 100, margin: 0 }} />
           <div style={{ width: 20 }} />
         </div>
@@ -137,11 +135,11 @@ function UserProfile() {
     <div className="userprofile-page page-enter">
       {/* Header */}
       <div className="userprofile-header">
-        <Link to={backTo} className="userprofile-back">
+        <button onClick={() => navigate(-1)} className="userprofile-back">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-        </Link>
+        </button>
         <span className="userprofile-header-name">
           @{displayName}
           {profile?.isPrivate && (
