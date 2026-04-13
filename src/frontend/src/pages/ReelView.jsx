@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   collection, query, orderBy, limit, getDocs,
-  startAfter, doc, updateDoc, arrayUnion, increment, Timestamp, where
+  startAfter, doc, updateDoc, arrayUnion, increment
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import './ReelView.css';
@@ -120,11 +120,7 @@ function ReelView() {
     loadingMoreRef.current = true;
 
     try {
-      const sevenDaysAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-      const constraints = [
-        where('createdAt', '>=', sevenDaysAgo),
-        orderBy('createdAt', 'desc'),
-      ];
+      const constraints = [orderBy('createdAt', 'desc')];
       if (isMore && lastDocRef.current) constraints.push(startAfter(lastDocRef.current));
       constraints.push(limit(PAGE_SIZE));
 
