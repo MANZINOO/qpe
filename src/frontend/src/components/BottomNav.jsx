@@ -35,7 +35,7 @@ function BottomNav() {
   }, [user?.uid]);
 
   // Non mostrare su pagine auth o se non loggato (DOPO tutti gli hooks)
-  const hideOn = ['/login', '/signup', '/privacy-policy', '/cookie-policy'];
+  const hideOn = ['/login', '/signup', '/privacy-policy', '/cookie-policy', '/reel', '/advertise'];
   if (!user || hideOn.some(p => location.pathname.startsWith(p))) return null;
   // Non mostrare nella chat individuale
   if (location.pathname.match(/^\/messages\/.+/)) return null;
