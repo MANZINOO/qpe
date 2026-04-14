@@ -1,6 +1,6 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 
 initializeApp();
@@ -20,11 +20,23 @@ const BLOCKLIST = [
   'cogliona','puttana','troia','bastardo','bastarda','merda','culo','figa',
   'porco dio','porcodio','madonna','maledetto','idiota','ritardato','mongo',
   'negro','negra','frocio','froccia','ricchione','culattone','lesbica',
-  'handicappato','down','autistico','ammazzati','muori','ucciditi',
+  'handicappato','down','autistico','ammazzati','muori','ucciditi','gay','diocane', 'dio cane',
   // Inglese
   'fuck','shit','bitch','asshole','nigger','nigga','faggot','cunt','whore',
   'slut','retard','kill yourself','kys','die','rape','nazi',
 ];
+
+// Incrementa violations sull'utente; al 3° → modalità limitata
+async function penalizeUser(authorId) {
+  if (!authorId) return;
+  const userRef = db.collection('users').doc(authorId);
+  await userRef.update({ violations: FieldValue.increment(1) });
+  const snap = await userRef.get();
+  if ((snap.data()?.violations || 0) >= 3) {
+    await userRef.update({ userMode: 'limited' });
+    console.log(`[QPe Moderation] Utente ${authorId} messo in modalità limitata`);
+  }
+}
 
 function containsBlocklisted(text) {
   if (!text) return false;
@@ -63,6 +75,7 @@ exports.moderatePoll = onDocumentCreated(
       await commentDoc.ref.delete();
     }
     await db.collection('polls').doc(pollId).delete();
+    await penalizeUser(poll.authorId);
 
     console.log(`[QPe Moderation] Poll ${pollId} eliminato (contenuto inappropriato)`);
   }
@@ -82,6 +95,7 @@ exports.moderateComment = onDocumentCreated(
     const repliesSnap = await commentRef.collection('replies').get();
     await Promise.all(repliesSnap.docs.map(r => r.ref.delete()));
     await commentRef.delete();
+    await penalizeUser(comment.uid);
 
     console.log(`[QPe Moderation] Commento ${commentId} eliminato (contenuto inappropriato)`);
   }
@@ -100,6 +114,7 @@ exports.moderateReply = onDocumentCreated(
     await db.collection('polls').doc(pollId)
       .collection('comments').doc(commentId)
       .collection('replies').doc(replyId).delete();
+    await penalizeUser(reply.uid);
 
     console.log(`[QPe Moderation] Risposta ${replyId} eliminata (contenuto inappropriato)`);
   }

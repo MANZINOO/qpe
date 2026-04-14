@@ -77,6 +77,10 @@ function CreatePoll() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (userProfile?.userMode === 'limited') {
+      setError('Il tuo account è in modalità limitata. Non puoi creare sondaggi per ora.');
+      return;
+    }
     if (!hasFullConsent()) {
       setCookieConsent(false);
       return;

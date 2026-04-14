@@ -339,6 +339,10 @@ function PollView() {
   async function handleSendComment(e) {
     e.preventDefault();
     if (!user) { navigate('/login'); return; }
+    if (userProfile?.userMode === 'limited') {
+      toast.error('Account in modalità limitata — non puoi commentare per ora.');
+      return;
+    }
     if (!commentText.trim()) return;
 
     setSendingComment(true);
@@ -477,6 +481,10 @@ function PollView() {
 
   async function handleSendReply(commentId) {
     if (!user || !replyText.trim()) return;
+    if (userProfile?.userMode === 'limited') {
+      toast.error('Account in modalità limitata — non puoi rispondere per ora.');
+      return;
+    }
     setSendingReply(true);
     const username = userProfile?.username || user.displayName || 'Anonimo';
     const newReply = {

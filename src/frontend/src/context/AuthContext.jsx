@@ -7,7 +7,7 @@ import {
   signOut,
   updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, writeBatch, deleteField } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, collection, query, where, getDocs, writeBatch, deleteField, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
 import { createNotification } from '../utils/notifications';
 import { registerFcmToken } from '../utils/fcm';
@@ -37,7 +37,8 @@ export function AuthProvider({ children }) {
 
       if (firebaseUser) {
         // Carica il profilo in background senza bloccare il rendering
-        getUserProfile(firebaseUser.uid).then(async (profile) => {
+        getUserProfile(firebaseUser.uid).then(async (profileData) => {
+          let profile = profileData;
           if (!profile) {
             await createUserProfile(firebaseUser.uid, {
               username: firebaseUser.displayName || firebaseUser.email.split('@')[0],
@@ -50,6 +51,15 @@ export function AuthProvider({ children }) {
             const newProfile = await getUserProfile(firebaseUser.uid);
             setUserProfile(newProfile);
           } else {
+            // Auto-upgrade da limited a normal dopo 24h dalla registrazione
+            if (profile.userMode === 'limited' && profile.registeredAt) {
+              const registeredMs = profile.registeredAt?.toDate?.()?.getTime() || new Date(profile.registeredAt).getTime();
+              const elapsed = Date.now() - registeredMs;
+              if (elapsed >= 24 * 60 * 60 * 1000) {
+                await updateDoc(doc(db, 'users', firebaseUser.uid), { userMode: 'normal' });
+                profile = { ...profile, userMode: 'normal' };
+              }
+            }
             setUserProfile(profile);
           }
           // Registra/aggiorna token FCM se il permesso è già stato concesso
@@ -139,7 +149,12 @@ export function AuthProvider({ children }) {
 
   // Crea profilo utente su Firestore
   async function createUserProfile(uid, data) {
-    await setDoc(doc(db, 'users', uid), data);
+    await setDoc(doc(db, 'users', uid), {
+      ...data,
+      userMode: 'limited',
+      violations: 0,
+      registeredAt: serverTimestamp(),
+    });
   }
 
   // Legge profilo utente da Firestore
