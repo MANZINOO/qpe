@@ -51,8 +51,13 @@ export function AuthProvider({ children }) {
             const newProfile = await getUserProfile(firebaseUser.uid);
             setUserProfile(newProfile);
           } else {
+            // Migrazione: utenti vecchi senza userMode → normal
+            if (!profile.userMode) {
+              await updateDoc(doc(db, 'users', firebaseUser.uid), { userMode: 'normal', violations: profile.violations ?? 0 });
+              profile = { ...profile, userMode: 'normal', violations: profile.violations ?? 0 };
+            }
             // Auto-upgrade da limited a normal dopo 24h dalla registrazione
-            if (profile.userMode === 'limited' && profile.registeredAt) {
+            else if (profile.userMode === 'limited' && profile.registeredAt) {
               const registeredMs = profile.registeredAt?.toDate?.()?.getTime() || new Date(profile.registeredAt).getTime();
               const elapsed = Date.now() - registeredMs;
               if (elapsed >= 24 * 60 * 60 * 1000) {
