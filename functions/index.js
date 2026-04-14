@@ -37,7 +37,7 @@ function containsBlocklisted(text) {
 
 /**
  * Moderazione automatica: nasconde i sondaggi con contenuto inappropriato.
- * Imposta hidden:true e flagged:true sul documento.
+ * Controlla titolo, opzioni e hashtag.
  */
 exports.moderatePoll = onDocumentCreated(
   'polls/{pollId}',
@@ -49,6 +49,7 @@ exports.moderatePoll = onDocumentCreated(
       poll.title,
       poll.optionA?.text,
       poll.optionB?.text,
+      ...(poll.hashtags || []),
     ];
 
     const flagged = textsToCheck.some(containsBlocklisted);
@@ -63,6 +64,52 @@ exports.moderatePoll = onDocumentCreated(
     });
 
     console.log(`[QPe Moderation] Poll ${pollId} nascosto (contenuto inappropriato)`);
+  }
+);
+
+/**
+ * Moderazione automatica commenti.
+ * Imposta hidden:true sul commento se contiene contenuto inappropriato.
+ */
+exports.moderateComment = onDocumentCreated(
+  'polls/{pollId}/comments/{commentId}',
+  async (event) => {
+    const comment = event.data?.data();
+    if (!comment || !containsBlocklisted(comment.text)) return;
+
+    const { pollId, commentId } = event.params;
+    await db.collection('polls').doc(pollId)
+      .collection('comments').doc(commentId).update({
+        hidden: true,
+        flagged: true,
+        flaggedAt: FieldValue.serverTimestamp(),
+        flagReason: 'blocklist',
+      });
+
+    console.log(`[QPe Moderation] Commento ${commentId} nascosto (contenuto inappropriato)`);
+  }
+);
+
+/**
+ * Moderazione automatica risposte ai commenti.
+ */
+exports.moderateReply = onDocumentCreated(
+  'polls/{pollId}/comments/{commentId}/replies/{replyId}',
+  async (event) => {
+    const reply = event.data?.data();
+    if (!reply || !containsBlocklisted(reply.text)) return;
+
+    const { pollId, commentId, replyId } = event.params;
+    await db.collection('polls').doc(pollId)
+      .collection('comments').doc(commentId)
+      .collection('replies').doc(replyId).update({
+        hidden: true,
+        flagged: true,
+        flaggedAt: FieldValue.serverTimestamp(),
+        flagReason: 'blocklist',
+      });
+
+    console.log(`[QPe Moderation] Risposta ${replyId} nascosta (contenuto inappropriato)`);
   }
 );
 
