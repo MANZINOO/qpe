@@ -213,6 +213,9 @@ function Home() {
       const snapshot = await getDocs(q);
       let pollsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
+      // Filtra poll nascosti dalla moderazione
+      pollsData = pollsData.filter(p => !p.hidden);
+
       // Filtra poll di profili privati (visibili solo in "seguiti")
       if (activeTab === 'tutti' || activeTab === 'tendenze') {
         pollsData = pollsData.filter(p => !p.authorIsPrivate);

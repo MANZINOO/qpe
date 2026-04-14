@@ -1,6 +1,6 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 
 initializeApp();
@@ -13,6 +13,59 @@ const messaging = getMessaging();
  * users/{userId}/notifications/{notifId}.
  * Legge il token FCM dell'utente destinatario e invia la push.
  */
+// ── Blocklist moderazione ──────────────────────────────────────────────────
+const BLOCKLIST = [
+  // Italiano
+  'cazzo','minchia','vaffanculo','fanculo','stronzo','stronza','coglione',
+  'cogliona','puttana','troia','bastardo','bastarda','merda','culo','figa',
+  'porco dio','porcodio','madonna','maledetto','idiota','ritardato','mongo',
+  'negro','negra','frocio','froccia','ricchione','culattone','lesbica',
+  'handicappato','down','autistico','ammazzati','muori','ucciditi',
+  // Inglese
+  'fuck','shit','bitch','asshole','nigger','nigga','faggot','cunt','whore',
+  'slut','retard','kill yourself','kys','die','rape','nazi',
+];
+
+function containsBlocklisted(text) {
+  if (!text) return false;
+  const lower = text.toLowerCase().replace(/[^a-zàèéìíîòóùú0-9\s]/g, ' ');
+  return BLOCKLIST.some(word => {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|\\s)${escaped}(\\s|$)`).test(lower) || lower.includes(word);
+  });
+}
+
+/**
+ * Moderazione automatica: nasconde i sondaggi con contenuto inappropriato.
+ * Imposta hidden:true e flagged:true sul documento.
+ */
+exports.moderatePoll = onDocumentCreated(
+  'polls/{pollId}',
+  async (event) => {
+    const poll = event.data?.data();
+    if (!poll) return;
+
+    const textsToCheck = [
+      poll.title,
+      poll.optionA?.text,
+      poll.optionB?.text,
+    ];
+
+    const flagged = textsToCheck.some(containsBlocklisted);
+    if (!flagged) return;
+
+    const pollId = event.params.pollId;
+    await db.collection('polls').doc(pollId).update({
+      hidden: true,
+      flagged: true,
+      flaggedAt: FieldValue.serverTimestamp(),
+      flagReason: 'blocklist',
+    });
+
+    console.log(`[QPe Moderation] Poll ${pollId} nascosto (contenuto inappropriato)`);
+  }
+);
+
 exports.sendPushOnNotification = onDocumentCreated(
   'users/{userId}/notifications/{notifId}',
   async (event) => {

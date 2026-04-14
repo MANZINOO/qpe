@@ -135,8 +135,8 @@ function ReelView() {
       const snap = await getDocs(query(collection(db, 'polls'), ...constraints));
       let data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-      // Filtra profili privati
-      data = data.filter(p => !p.authorIsPrivate);
+      // Filtra poll nascosti dalla moderazione e profili privati
+      data = data.filter(p => !p.hidden && !p.authorIsPrivate);
 
       lastDocRef.current = snap.docs[snap.docs.length - 1] ?? null;
       hasMoreRef.current = snap.docs.length === PAGE_SIZE;
