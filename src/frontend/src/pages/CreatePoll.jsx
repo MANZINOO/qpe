@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { collection, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '../context/ToastContext';
+import { collection, doc, setDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { hasFullConsent, acceptAllCookies } from '../utils/cookieConsent';
@@ -29,6 +30,7 @@ const COLOR_PRESETS = [
 function CreatePoll() {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const [title, setTitle] = useState('');
   const [optionA, setOptionA] = useState('');
@@ -118,6 +120,15 @@ function CreatePoll() {
       if (imageA) imageUpdate['optionA.image'] = await uploadPollImage(imageA, newDocRef.id, 'A');
       if (imageB) imageUpdate['optionB.image'] = await uploadPollImage(imageB, newDocRef.id, 'B');
       if (Object.keys(imageUpdate).length > 0) await updateDoc(newDocRef, imageUpdate);
+
+      // Attendi la moderazione automatica (~3s) e verifica che il poll esista ancora
+      await new Promise(r => setTimeout(r, 3000));
+      const check = await getDoc(newDocRef);
+      if (!check.exists()) {
+        toast.error('Ops, c\'è stato un problema — Contenuto non consentito dalla community.');
+        setLoading(false);
+        return;
+      }
 
       navigate(`/poll/${newDocRef.id}`);
     } catch (err) {

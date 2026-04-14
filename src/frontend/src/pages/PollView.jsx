@@ -367,6 +367,14 @@ function PollView() {
           pollTitle: poll.title
         });
       }
+
+      // Controlla se il commento è stato eliminato dalla moderazione
+      await new Promise(r => setTimeout(r, 3000));
+      const check = await getDoc(docRef);
+      if (!check.exists()) {
+        setComments(prev => prev.filter(c => c.id !== docRef.id));
+        toast.error('Ops, c\'è stato un problema — Contenuto non consentito dalla community.');
+      }
     } catch (err) {
       console.error('[QPe] Errore invio commento:', err);
     } finally {
@@ -499,6 +507,20 @@ function PollView() {
           pollId: id,
           pollTitle: poll.title
         });
+      }
+
+      // Controlla se la risposta è stata eliminata dalla moderazione
+      await new Promise(r => setTimeout(r, 3000));
+      const check = await getDoc(replyRef);
+      if (!check.exists()) {
+        setReplies(prev => ({
+          ...prev,
+          [commentId]: (prev[commentId] || []).filter(r => r.id !== replyRef.id)
+        }));
+        setComments(prev => prev.map(c =>
+          c.id === commentId ? { ...c, repliesCount: Math.max(0, (c.repliesCount || 1) - 1) } : c
+        ));
+        toast.error('Ops, c\'è stato un problema — Contenuto non consentito dalla community.');
       }
     } catch (err) {
       console.error('[QPe] Errore invio risposta:', err);
