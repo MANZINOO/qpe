@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { doc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, increment, collection, addDoc, getDocs, orderBy, query, serverTimestamp, where, limit } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, increment, collection, addDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, where, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { createNotification } from '../utils/notifications';
 import { getConvId } from '../utils/conversations';
@@ -368,10 +368,17 @@ function PollView() {
         });
       }
 
-      // Controlla se il commento è stato eliminato dalla moderazione
-      await new Promise(r => setTimeout(r, 3000));
-      const check = await getDoc(docRef);
-      if (!check.exists()) {
+      // Ascolta la moderazione: se il commento sparisce entro 8s mostra errore
+      let commentDeleted = false;
+      await new Promise((resolve) => {
+        let firstSnap = true;
+        const unsub = onSnapshot(docRef, (snap) => {
+          if (firstSnap) { firstSnap = false; return; }
+          if (!snap.exists()) { commentDeleted = true; unsub(); resolve(); }
+        });
+        setTimeout(() => { unsub(); resolve(); }, 8000);
+      });
+      if (commentDeleted) {
         setComments(prev => prev.filter(c => c.id !== docRef.id));
         toast.error('Ops, c\'è stato un problema — Contenuto non consentito dalla community.');
       }
@@ -509,10 +516,17 @@ function PollView() {
         });
       }
 
-      // Controlla se la risposta è stata eliminata dalla moderazione
-      await new Promise(r => setTimeout(r, 3000));
-      const check = await getDoc(replyRef);
-      if (!check.exists()) {
+      // Ascolta la moderazione: se la risposta sparisce entro 8s mostra errore
+      let replyDeleted = false;
+      await new Promise((resolve) => {
+        let firstSnap = true;
+        const unsub = onSnapshot(replyRef, (snap) => {
+          if (firstSnap) { firstSnap = false; return; }
+          if (!snap.exists()) { replyDeleted = true; unsub(); resolve(); }
+        });
+        setTimeout(() => { unsub(); resolve(); }, 8000);
+      });
+      if (replyDeleted) {
         setReplies(prev => ({
           ...prev,
           [commentId]: (prev[commentId] || []).filter(r => r.id !== replyRef.id)

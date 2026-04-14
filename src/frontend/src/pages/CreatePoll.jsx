@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { collection, doc, setDoc, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { hasFullConsent, acceptAllCookies } from '../utils/cookieConsent';
@@ -121,10 +121,18 @@ function CreatePoll() {
       if (imageB) imageUpdate['optionB.image'] = await uploadPollImage(imageB, newDocRef.id, 'B');
       if (Object.keys(imageUpdate).length > 0) await updateDoc(newDocRef, imageUpdate);
 
-      // Attendi la moderazione automatica (~3s) e verifica che il poll esista ancora
-      await new Promise(r => setTimeout(r, 3000));
-      const check = await getDoc(newDocRef);
-      if (!check.exists()) {
+      // Ascolta la moderazione automatica: max 8s, se il doc sparisce mostra errore
+      let deleted = false;
+      await new Promise((resolve) => {
+        let firstSnap = true;
+        const unsub = onSnapshot(newDocRef, (snap) => {
+          if (firstSnap) { firstSnap = false; return; }
+          if (!snap.exists()) { deleted = true; unsub(); resolve(); }
+        });
+        setTimeout(() => { unsub(); resolve(); }, 8000);
+      });
+
+      if (deleted) {
         toast.error('Ops, c\'è stato un problema — Contenuto non consentito dalla community.');
         setLoading(false);
         return;
