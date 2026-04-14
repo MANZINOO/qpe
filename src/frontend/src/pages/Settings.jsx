@@ -664,7 +664,7 @@ function Settings() {
           {activeTab === 'about' && (
             <div className="settings-section">
               <h2>Informazioni app</h2>
-              <div className="info-row"><span>Versione</span><span>0.4.0</span></div>
+              <div className="info-row"><span>Versione</span><span>0.6.0</span></div>
               <div className="info-row"><span>Licenza</span><span>MIT</span></div>
               <div className="info-row"><span>Contatti</span><span>info@qpe.app</span></div>
               <div className="info-links">

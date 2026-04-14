@@ -11,6 +11,48 @@ e il progetto adotta il [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.6.0] - 14-04-2026
+
+### Aggiunto
+
+- **Reel view** (`/reel`): vista a schermo intero con scroll-snap verticale, votazione inline con le stesse regole di PollView (anti-doppio-voto, notifica, firstVoters)
+- **Pagina inserzionisti** (`/advertise`): formati pubblicitari, 3 pacchetti (Starter €299 / Growth €799 / Enterprise), FAQ e CTA
+- **Profili privati**: toggle "Profilo privato" in Impostazioni, richiesta approvazione follow, campo `authorIsPrivate` denormalizzato sui poll per filtro efficiente
+- **Accept/Reject richieste di follow** nella pagina Notifiche con pulsanti dedicati
+- **Algoritmo "Per te"**: scoring lato client — categoria match (+4), engagement (log voti), recency boost (esponenziale)
+- **Badge ✓ votato** sulle card del feed home per i sondaggi già votati dall'utente
+- **Bot di moderazione automatica** (Cloud Functions v2):
+  - `moderatePoll`: elimina poll con titolo/opzioni/hashtag inappropriati
+  - `moderateComment`: elimina commenti inappropriati
+  - `moderateReply`: elimina risposte inappropriate
+  - Blocklist ~55 termini IT/EN
+  - Toast feedback ("Ops, c'è stato un problema — Contenuto non consentito dalla community.") tramite `onSnapshot` con attesa max 8s
+- **Sistema violazioni**: ogni contenuto eliminato dalla moderazione incrementa `violations` sull'autore; a 3 infrazioni → `userMode: 'limited'`
+- **Modalità utente** (`userMode: limited | normal | premium`):
+  - Nuovi account partono in `limited` per le prime 24h
+  - Auto-upgrade a `normal` al login dopo 24h da `registeredAt`
+  - Migrazione automatica degli account esistenti (senza campo `userMode`) a `normal`
+  - Utenti `limited`: non possono creare sondaggi né commentare, possono votare
+
+### Modificato
+
+- Icona reel nell'header: da triangolo ▶ a griglia film ⊞ (più riconoscibile)
+- `UserProfile.jsx`: back button usa `navigate(-1)` invece di `<Link to="/">` — evita loop nella history quando si arriva dal reel o da altre pagine
+- `PollView.jsx`: il segno di spunta ✓ non appare più nella vista autore (opzione A e B)
+- `BottomNav.jsx`: `/reel` e `/advertise` aggiunti a `hideOn` (pagine fullscreen)
+- `Footer.css`: padding-bottom aggiunto per mobile, evita sovrapposizione con BottomNav
+- Versione app aggiornata a `0.6.0` in Impostazioni → Info
+
+### Corretto
+
+- **Reel**: doppio voto causato da race condition — risolto con `votingRef` (useRef)
+- **Reel**: caricamento doppio in React Strict Mode — risolto con `loadingInitialRef`
+- **Reel**: nessun sondaggio caricato per via del filtro `createdAt >= 7 giorni` — rimosso il filtro data
+- **BottomNav**: non si nascondeva su `/reel` — aggiunto a `hideOn`
+- **Settings**: footer con link legali coperto dalla BottomNav su mobile — corretto con padding-bottom nel `Footer.css`
+
+---
+
 ## [0.5.0] - 07-04-2026
 
 ### Aggiunto

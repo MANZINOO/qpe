@@ -7,27 +7,48 @@ Tutte le attività del progetto. Le attività completate sono archiviate nella s
 ## In corso / Prossimi step
 
 ### Feature
-- [x] Swipe verticale tra sondaggi (stile reel, mobile) → `/reel`
-- [x] Infinite scroll / paginazione avanzata nel feed
-- [x] Approvazione follow (profilo privato) — isPrivate, followRequests, toggle Settings
-- [x] Algoritmo di raccomandazione feed "Per te" — scoring categorie + engagement
-- [x] Notifiche push (Firebase Cloud Messaging + Cloud Functions)
-- [x] Feed privato — poll di profili privati filtrati da "Per te" e "Tendenze"
+- [ ] Modalità normale e premium — definire limiti e vantaggi
+- [ ] Media kit PDF scaricabile dalla pagina `/advertise`
+- [ ] Onboarding — schermata selezione categorie al primo accesso (nuovi utenti)
+- [ ] Condivisione sondaggio con Web Share API nativa in PollView (bottone share)
 
 ### Business
-- [x] Pagina `/advertise` per inserzionisti (formati, prezzi, FAQ, CTA)
-- [ ] Media kit PDF scaricabile
-- [ ] Bot moderazione automatica base
+- [ ] Dominio personalizzato (`qpe.app`) su Firebase Hosting
 
-### Deploy
-- [x] Deploy frontend su Firebase Hosting (`qpe-app.web.app`)
-- [ ] Configurare dominio personalizzato (`qpe.app`)
-- [x] Variabili d'ambiente su Firebase
-- [x] Regole Firebase Storage per avatar
+### Tecnico
+- [ ] Code splitting del bundle (attualmente ~890KB) con dynamic `import()`
 
 ---
 
 ## Completato
+
+### Moderazione & Sicurezza
+- [x] Bot moderazione automatica (Cloud Functions v2): `moderatePoll`, `moderateComment`, `moderateReply`
+- [x] Blocklist ~55 termini IT/EN con eliminazione immediata del contenuto
+- [x] Sistema violazioni: 3 infrazioni → `userMode: 'limited'`
+- [x] Toast feedback all'utente tramite `onSnapshot` quando il contenuto viene rimosso
+- [x] Modalità utente: `limited` (prime 24h + 3 violazioni) / `normal` / `premium`
+- [x] Auto-upgrade limited → normal dopo 24h da `registeredAt`
+- [x] Migrazione automatica account esistenti senza `userMode` → `normal`
+
+### Reel & Navigazione
+- [x] Swipe verticale tra sondaggi (stile reel, scroll-snap CSS-only) → `/reel`
+- [x] Votazione inline nel reel con stesse regole di PollView (anti-doppio-voto, notifiche)
+- [x] Back navigation corretto: `navigate(-1)` in UserProfile evita loop nella history
+- [x] Icona reel nell'header aggiornata a griglia film
+
+### Feed & Algoritmo
+- [x] Algoritmo "Per te": scoring per categoria (+4), engagement (log voti), recency boost
+- [x] Badge ✓ votato sulle card del feed home
+- [x] Filtro poll nascosti dalla moderazione nel feed e nel reel
+
+### Profili & Sociale
+- [x] Profili privati (isPrivate toggle, approvazione follow, `authorIsPrivate` denormalizzato)
+- [x] Accept/Reject richieste di follow nelle Notifiche
+- [x] Feed privato — poll di profili privati filtrati da "Per te" e "Tendenze"
+
+### Business
+- [x] Pagina `/advertise` per inserzionisti (formati, pacchetti Starter/Growth/Enterprise, FAQ, CTA)
 
 ### Documentazione GPOI
 - [x] Studio di fattibilità (docs/fattibilita/)
@@ -39,19 +60,19 @@ Tutte le attività del progetto. Le attività completate sono archiviate nella s
 - [x] README manuale utente + guida sviluppatori (10 sezioni)
 - [x] CHANGELOG con Keep a Changelog + Semantic Versioning
 - [x] Cheatsheet Git e GitHub Tasks
-- [x] Bug fix: Home.jsx (tab vs activeTab), Settings.jsx (versione + alert→toast)
 
 ### Infrastruttura & Sicurezza
 - [x] Setup repo GitHub con struttura corretta (docs/, src/, README, LICENSE, CHANGELOG)
 - [x] Firebase Authentication — email/password + Google OAuth
 - [x] Profilo utente su Firestore con fallback locale
-- [x] Sicurezza: chiave API Firebase in variabili d'ambiente `.env` (non nel codice)
+- [x] Sicurezza: chiave API Firebase in variabili d'ambiente `.env`
 - [x] Regole Firestore complete: utenti, notifiche, sondaggi, commenti, conversazioni, messaggi
 - [x] Firebase Storage per upload avatar
+- [x] Cloud Functions v2 deploy (moderazione + push notifications)
 
 ### GDPR & Privacy
-- [x] Cookie Banner GDPR con 3 livelli di consenso (necessari, analytics, marketing)
-- [x] Gestione preferenze cookie (revoca e aggiornamento in qualsiasi momento)
+- [x] Cookie Banner GDPR con 3 livelli di consenso
+- [x] Gestione preferenze cookie (revoca e aggiornamento)
 - [x] Privacy Policy e Cookie Policy
 - [x] Export dati personali in JSON (Art. 20 GDPR)
 - [x] Eliminazione account con conferma testuale (Art. 17 GDPR)
@@ -64,14 +85,14 @@ Tutte le attività del progetto. Le attività completate sono archiviate nella s
 - [x] Annullamento voto
 - [x] Sistema like con toggle
 - [x] Commenti con like e risposte annidate
-- [x] Contatore risposte sincronizzato con Firestore
 - [x] Statistiche autore (lista votanti + liker con nickname)
 - [x] Protezione autovoto e autolike
 - [x] Modifica titolo e hashtag (solo autore)
 - [x] Eliminazione sondaggio con pulizia commenti (solo autore)
 - [x] Pulsante condivisione (Web Share API con fallback copia link)
 - [x] Inoltro sondaggio in chat DM
-- [x] Contatore visualizzazioni (esclude l'autore, non conta accessi multipli)
+- [x] Contatore visualizzazioni (esclude l'autore)
+- [x] Vista autore: percentuali visibili senza votare, nessuna spunta ✓
 
 ### Feed & Navigazione
 - [x] Home feed dinamico con query Firestore
@@ -79,6 +100,7 @@ Tutte le attività del progetto. Le attività completate sono archiviate nella s
 - [x] Filtro sondaggi per hashtag (`?tag=` query parameter)
 - [x] Cache tab con invalidazione al cambio following
 - [x] Skeleton loading e stati vuoti descrittivi
+- [x] Notifiche push (Firebase Cloud Messaging + Cloud Functions)
 
 ### Profilo & Sociale
 - [x] Modifica profilo (username, bio) con salvataggio Firestore
@@ -88,7 +110,7 @@ Tutte le attività del progetto. Le attività completate sono archiviate nella s
 - [x] Statistiche profilo (sondaggi, follower, seguiti)
 
 ### Notifiche
-- [x] Notifiche in tempo reale (follow, voto, like, commento) con badge non letti
+- [x] Notifiche in tempo reale (follow, voto, like, commento, followRequest)
 - [x] Segna come letta / segna tutte lette
 - [x] Navigazione diretta dal click sulla notifica
 

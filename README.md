@@ -4,7 +4,7 @@
 
 # QPé — Social Network dei Sondaggi Binari
 
-![Versione](https://img.shields.io/badge/versione-0.4.0-blue)
+![Versione](https://img.shields.io/badge/versione-0.6.0-blue)
 ![Licenza](https://img.shields.io/badge/licenza-MIT-green)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
 ![Firebase](https://img.shields.io/badge/Firebase-11-FFCA28?logo=firebase)
@@ -253,8 +253,15 @@ QPé supporta **tema scuro** e **tema chiaro**:
 - [x] Contatore visualizzazioni (esclude l'autore)
 - [x] Protezione autovoto e autolike
 
+### Reel
+- [x] Vista reel a schermo intero con scroll-snap verticale (`/reel`)
+- [x] Votazione inline identica a PollView (stesse regole, stesso comportamento)
+- [x] Navigazione al profilo autore con back corretto
+
 ### Feed & Navigazione
 - [x] Tab "Per te", "Seguiti", "Tendenze"
+- [x] Algoritmo "Per te": scoring per categorie (+4), engagement (log), recency boost
+- [x] Badge ✓ sulle card dei sondaggi già votati
 - [x] Filtro per hashtag con `?tag=` query parameter
 - [x] Cache per tab (invalidata al cambio following)
 - [x] Skeleton loading e stati vuoti
@@ -264,6 +271,8 @@ QPé supporta **tema scuro** e **tema chiaro**:
 - [x] Upload avatar con compressione client-side (max 400×400px, JPEG 82%)
 - [x] Follow/Unfollow con notifica automatica
 - [x] Profili pubblici (`/u/:uid`)
+- [x] Profili privati (toggle in Impostazioni, approvazione follow richiesta)
+- [x] Accept/Reject richieste di follow nelle Notifiche
 
 ### Notifiche & Messaggi
 - [x] Notifiche real-time (follow, voto, like, commento)
@@ -285,6 +294,15 @@ QPé supporta **tema scuro** e **tema chiaro**:
 - [x] Toast notifications (successo, errore, info)
 - [x] Animazioni stagger e transizioni pagina
 
+### Moderazione & Sicurezza
+- [x] Bot di moderazione automatica (Cloud Functions) su sondaggi, commenti e risposte
+- [x] Blocklist IT/EN (~50 termini): contenuto eliminato automaticamente
+- [x] Sistema violazioni: 3 infrazioni → account in modalità limitata
+- [x] Toast feedback all'utente quando il contenuto viene rimosso
+- [x] Modalità utente: `limited` (prime 24h e dopo 3 violazioni) / `normal` / `premium`
+- [x] Auto-upgrade da limited a normal dopo 24h dalla registrazione
+- [x] Gestione manuale modalità utente tramite Firestore Console
+
 ### GDPR & Privacy
 - [x] Cookie Banner con 3 livelli di consenso
 - [x] Gestione preferenze cookie (revoca in qualsiasi momento)
@@ -304,6 +322,7 @@ QPé supporta **tema scuro** e **tema chiaro**:
 | Auth | Firebase Authentication | 11 |
 | Database | Cloud Firestore | 11 |
 | Storage | Firebase Storage | 11 |
+| Cloud Functions | Firebase Functions | v2 (Node 20) |
 | Cookie management | js-cookie | 3.0.5 |
 | Font | Inter | Google Fonts |
 | Stile | CSS custom (variabili, no framework) | — |
@@ -311,19 +330,26 @@ QPé supporta **tema scuro** e **tema chiaro**:
 ### Architettura
 
 ```
-src/
-├── context/        # Stato globale (Auth, Theme, Toast)
-├── pages/          # Una cartella per pagina/route
-├── components/     # Componenti riutilizzabili
-└── utils/          # Funzioni pure e helper Firebase
+qpe/
+├── functions/          # Cloud Functions (moderazione, push)
+├── src/frontend/src/
+│   ├── context/        # Stato globale (Auth, Theme, Toast)
+│   ├── pages/          # Una cartella per pagina/route
+│   ├── components/     # Componenti riutilizzabili
+│   └── utils/          # Funzioni pure e helper Firebase
+└── firestore.rules
 ```
 
 **Pattern principali:**
-- `onSnapshot` per dati real-time (conversazioni, notifiche, messaggi)
+- `onSnapshot` per dati real-time (conversazioni, notifiche, messaggi, moderazione)
 - Cache per tab con invalidazione selettiva
 - Profilo Firestore caricato in background (non blocca il render)
 - ID conversazioni deterministici (UID ordinati alfabeticamente)
 - Compressione immagini client-side prima dell'upload
+- `scroll-snap-type: y mandatory` per il Reel CSS-only
+- `votingRef` (useRef) per prevenire doppi voti in race condition
+- `authorIsPrivate` denormalizzato sui poll per query efficienti
+- Bot di moderazione serverless via Cloud Functions v2
 
 ---
 
@@ -467,6 +493,14 @@ La documentazione GDPR completa è in [`docs/cookies_gdpr/README.md`](docs/cooki
 - **Portabilità (Art. 20):** export dati in JSON da Impostazioni → Privacy e Dati → Scarica i miei dati
 - **Oblio (Art. 17):** eliminazione account da Impostazioni → Privacy e Dati → Elimina il mio account
 - **Revoca consenso:** gestione cookie da Impostazioni → Privacy e Dati → Preferenze cookie
+
+### Pagina inserzionisti
+
+Raggiungibile su `/advertise`, presenta:
+- Statistiche utenti e sondaggi pubblicati
+- 4 formati pubblicitari (Sondaggio Sponsorizzato, Banner Reel, Post Nativo, Notifica Push)
+- 3 pacchetti: **Starter** €299, **Growth** €799, **Enterprise** su preventivo
+- FAQ e modulo di contatto CTA
 
 ---
 
