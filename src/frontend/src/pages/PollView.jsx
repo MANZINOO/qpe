@@ -330,7 +330,7 @@ function PollView() {
         orderBy('createdAt', 'asc')
       );
       const snap = await getDocs(q);
-      setComments(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.hidden));
+      setComments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (err) {
       console.error('[QPe] Errore caricamento commenti:', err);
     }
@@ -416,7 +416,7 @@ function PollView() {
         orderBy('createdAt', 'asc')
       );
       const snap = await getDocs(q);
-      const loaded = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => !r.hidden);
+      const loaded = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setReplies(prev => ({ ...prev, [commentId]: loaded }));
       // Sincronizza il contatore con la realtà (gestisce cancellazioni manuali da console)
       setComments(prev => prev.map(c => {

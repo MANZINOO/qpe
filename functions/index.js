@@ -1,6 +1,6 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { getFirestore } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 
 initializeApp();
@@ -36,7 +36,7 @@ function containsBlocklisted(text) {
 }
 
 /**
- * Moderazione automatica: nasconde i sondaggi con contenuto inappropriato.
+ * Moderazione automatica: elimina i sondaggi con contenuto inappropriato.
  * Controlla titolo, opzioni e hashtag.
  */
 exports.moderatePoll = onDocumentCreated(
@@ -52,24 +52,24 @@ exports.moderatePoll = onDocumentCreated(
       ...(poll.hashtags || []),
     ];
 
-    const flagged = textsToCheck.some(containsBlocklisted);
-    if (!flagged) return;
+    if (!textsToCheck.some(containsBlocklisted)) return;
 
     const pollId = event.params.pollId;
-    await db.collection('polls').doc(pollId).update({
-      hidden: true,
-      flagged: true,
-      flaggedAt: FieldValue.serverTimestamp(),
-      flagReason: 'blocklist',
-    });
+    // Elimina tutti i commenti e risposte prima di eliminare il poll
+    const commentsSnap = await db.collection('polls').doc(pollId).collection('comments').get();
+    for (const commentDoc of commentsSnap.docs) {
+      const repliesSnap = await commentDoc.ref.collection('replies').get();
+      await Promise.all(repliesSnap.docs.map(r => r.ref.delete()));
+      await commentDoc.ref.delete();
+    }
+    await db.collection('polls').doc(pollId).delete();
 
-    console.log(`[QPe Moderation] Poll ${pollId} nascosto (contenuto inappropriato)`);
+    console.log(`[QPe Moderation] Poll ${pollId} eliminato (contenuto inappropriato)`);
   }
 );
 
 /**
- * Moderazione automatica commenti.
- * Imposta hidden:true sul commento se contiene contenuto inappropriato.
+ * Moderazione automatica commenti: elimina se contiene contenuto inappropriato.
  */
 exports.moderateComment = onDocumentCreated(
   'polls/{pollId}/comments/{commentId}',
@@ -78,20 +78,17 @@ exports.moderateComment = onDocumentCreated(
     if (!comment || !containsBlocklisted(comment.text)) return;
 
     const { pollId, commentId } = event.params;
-    await db.collection('polls').doc(pollId)
-      .collection('comments').doc(commentId).update({
-        hidden: true,
-        flagged: true,
-        flaggedAt: FieldValue.serverTimestamp(),
-        flagReason: 'blocklist',
-      });
+    const commentRef = db.collection('polls').doc(pollId).collection('comments').doc(commentId);
+    const repliesSnap = await commentRef.collection('replies').get();
+    await Promise.all(repliesSnap.docs.map(r => r.ref.delete()));
+    await commentRef.delete();
 
-    console.log(`[QPe Moderation] Commento ${commentId} nascosto (contenuto inappropriato)`);
+    console.log(`[QPe Moderation] Commento ${commentId} eliminato (contenuto inappropriato)`);
   }
 );
 
 /**
- * Moderazione automatica risposte ai commenti.
+ * Moderazione automatica risposte: elimina se contiene contenuto inappropriato.
  */
 exports.moderateReply = onDocumentCreated(
   'polls/{pollId}/comments/{commentId}/replies/{replyId}',
@@ -102,14 +99,9 @@ exports.moderateReply = onDocumentCreated(
     const { pollId, commentId, replyId } = event.params;
     await db.collection('polls').doc(pollId)
       .collection('comments').doc(commentId)
-      .collection('replies').doc(replyId).update({
-        hidden: true,
-        flagged: true,
-        flaggedAt: FieldValue.serverTimestamp(),
-        flagReason: 'blocklist',
-      });
+      .collection('replies').doc(replyId).delete();
 
-    console.log(`[QPe Moderation] Risposta ${replyId} nascosta (contenuto inappropriato)`);
+    console.log(`[QPe Moderation] Risposta ${replyId} eliminata (contenuto inappropriato)`);
   }
 );
 
