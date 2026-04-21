@@ -331,13 +331,16 @@ QPé supporta **tema scuro** e **tema chiaro**:
 
 ```
 qpe/
-├── functions/          # Cloud Functions (moderazione, push)
+├── firebase/
+│   ├── functions/      # Cloud Functions (moderazione, push)
+│   ├── firestore.rules # Regole sicurezza Firestore
+│   └── storage.rules   # Regole sicurezza Storage
 ├── src/frontend/src/
 │   ├── context/        # Stato globale (Auth, Theme, Toast)
 │   ├── pages/          # Una cartella per pagina/route
 │   ├── components/     # Componenti riutilizzabili
 │   └── utils/          # Funzioni pure e helper Firebase
-└── firestore.rules
+└── firebase.json       # Configurazione deploy Firebase CLI
 ```
 
 **Pattern principali:**
@@ -398,7 +401,7 @@ npm run lint      # Analisi statica del codice con ESLint
 
 ### Deploy Firestore rules
 
-Pubblica le regole di sicurezza dal file `firestore.rules`:
+Pubblica le regole di sicurezza dal file `firebase/firestore.rules`:
 
 ```bash
 # Con Firebase CLI
@@ -407,7 +410,7 @@ firebase login
 firebase deploy --only firestore:rules
 ```
 
-Oppure copia il contenuto di `firestore.rules` direttamente nella console Firebase → Firestore → Regole.
+Oppure copia il contenuto di `firebase/firestore.rules` direttamente nella console Firebase → Firestore → Regole.
 
 ---
 
@@ -451,9 +454,13 @@ qpe/
 │       │   └── main.jsx               # Entry point React
 │       ├── .env.example               # Template variabili d'ambiente
 │       └── package.json
+├── firebase/
+│   ├── functions/                     # Cloud Functions v2 (moderazione + push)
+│   │   └── index.js                   # moderatePoll, moderateComment, moderateReply, sendPush
+│   ├── firestore.rules                # Regole sicurezza Firestore
+│   └── storage.rules                  # Regole sicurezza Firebase Storage
 ├── images_qpe/                        # Asset grafici (logo, icone, gif)
-├── firebase.json                      # Configurazione Firebase CLI
-├── firestore.rules                    # Regole sicurezza Firestore
+├── firebase.json                      # Configurazione deploy Firebase CLI
 ├── README.md                          # Questo file
 ├── CHANGELOG.md                       # Cronologia delle versioni
 ├── TODO.md                            # Task completati e futuri
@@ -466,7 +473,7 @@ qpe/
 
 ### Regole Firestore
 
-Le regole complete sono nel file `firestore.rules`. In sintesi:
+Le regole complete sono nel file `firebase/firestore.rules`. In sintesi:
 
 | Risorsa | Lettura | Scrittura | Note |
 |---|---|---|---|

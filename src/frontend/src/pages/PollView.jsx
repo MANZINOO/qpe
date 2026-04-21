@@ -82,10 +82,24 @@ function PollView() {
   const [replies, setReplies] = useState({});            // { [commentId]: Reply[] }
   const [shownReplies, setShownReplies] = useState(new Set()); // commentId con replies visibili
 
-  // Carica il sondaggio UNA sola volta quando cambia l'id
+  // Ascolta il sondaggio in tempo reale (voti, like, visualizzazioni)
   useEffect(() => {
     viewRecordedRef.current = false;
-    loadPoll();
+    setLoading(true);
+    const docRef = doc(db, 'polls', id);
+    const unsub = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        setPoll({ id: snap.id, ...snap.data() });
+      } else {
+        setError('Sondaggio non trovato');
+      }
+      setLoading(false);
+    }, (err) => {
+      console.error('[QPe] Errore caricamento poll:', err);
+      setError('Errore nel caricamento');
+      setLoading(false);
+    });
+    return () => unsub();
   }, [id]);
 
   // Quando l'utente diventa disponibile (auth asincrono), aggiorna lo stato voto/like
@@ -181,25 +195,6 @@ function PollView() {
     });
   }
 
-  async function loadPoll() {
-    try {
-      const docRef = doc(db, 'polls', id);
-      const docSnap = await getDoc(docRef);
-      console.log(`[QPe] PollView ${id}: exists=${docSnap.exists()}`, docSnap.metadata.fromCache ? '(dalla cache)' : '(dal server)');
-      if (docSnap.exists()) {
-        const data = { id: docSnap.id, ...docSnap.data() };
-        setPoll(data);
-      } else {
-        setError('Sondaggio non trovato');
-      }
-    } catch (err) {
-      console.error('[QPe] Errore caricamento poll:', err);
-      setError('Errore nel caricamento');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handleVote(choice) {
     if (!user) { navigate('/login'); return; }
     if (voting || isAuthor) return;
@@ -225,13 +220,7 @@ function PollView() {
           [`option${removedVote}.votes`]: increment(-1)
         });
 
-        setPoll(prev => ({
-          ...prev,
-          voters: newVoters,
-          optionA: { ...prev.optionA, votes: prev.optionA.votes - (removedVote === 'A' ? 1 : 0) },
-          optionB: { ...prev.optionB, votes: prev.optionB.votes - (removedVote === 'B' ? 1 : 0) },
-          totalVotes: (prev.totalVotes || 1) - 1
-        }));
+        // onSnapshot aggiorna poll automaticamente — aggiorniamo solo lo stato UI locale
         setHasVoted(false);
         setVotedOption(null);
 
@@ -246,14 +235,7 @@ function PollView() {
           ...(isFirstVote && { firstVoters: arrayUnion(user.uid) })
         });
 
-        setPoll(prev => ({
-          ...prev,
-          optionA: { ...prev.optionA, votes: prev.optionA.votes + (choice === 'A' ? 1 : 0) },
-          optionB: { ...prev.optionB, votes: prev.optionB.votes + (choice === 'B' ? 1 : 0) },
-          totalVotes: (prev.totalVotes || 0) + 1,
-          voters: [...(prev.voters || []), { uid: user.uid, username, choice }],
-          firstVoters: isFirstVote ? [...(prev.firstVoters || []), user.uid] : (prev.firstVoters || [])
-        }));
+        // onSnapshot aggiorna poll automaticamente — aggiorniamo solo lo stato UI locale
         setHasVoted(true);
         setVotedOption(choice);
 
@@ -291,8 +273,8 @@ function PollView() {
             (typeof l === 'object' ? l.uid : l) !== user.uid
           );
           await updateDoc(pollRef, { likes: newLikes, likesCount: newLikes.length });
-          setPoll(prev => ({ ...prev, likes: newLikes, likesCount: newLikes.length }));
         }
+        // onSnapshot aggiorna poll automaticamente — aggiorniamo solo lo stato UI locale
         setLiked(false);
       } else {
         const likeObj = { uid: user.uid, username };
@@ -300,11 +282,7 @@ function PollView() {
           likes: arrayUnion(likeObj),
           likesCount: increment(1)
         });
-        setPoll(prev => ({
-          ...prev,
-          likes: [...(prev.likes || []), likeObj],
-          likesCount: (prev.likesCount || 0) + 1
-        }));
+        // onSnapshot aggiorna poll automaticamente — aggiorniamo solo lo stato UI locale
         setLiked(true);
 
         // Notifica l'autore del sondaggio

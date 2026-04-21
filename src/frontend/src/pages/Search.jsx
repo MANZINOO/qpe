@@ -39,7 +39,7 @@ function Search() {
   // Lancia la ricerca ogni volta che cambia il termine debounced o il tab
   useEffect(() => {
     const t = debouncedTerm.trim();
-    if (t.length < 2) {
+    if (t.length < 1) {
       setUsers([]);
       setPolls([]);
       setSearched(false);
@@ -83,22 +83,26 @@ function Search() {
   async function searchPolls(t) {
     setLoading(true);
     try {
-      const termLower = t.toLowerCase();
-      const termCap   = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+      // Firestore non supporta substring search nativo:
+      // si scaricano i 300 sondaggi più recenti e si filtra client-side
+      // per titolo (contains) e hashtag (contains), con o senza # iniziale
+      const termLower = t.replace(/^#/, '').toLowerCase().trim();
 
-      const makeQ = (startTerm) => query(
+      const snap = await getDocs(query(
         collection(db, 'polls'),
-        where('title', '>=', startTerm),
-        where('title', '<=', startTerm + '\uf8ff'),
-        orderBy('title'),
-        limit(15)
-      );
+        orderBy('createdAt', 'desc'),
+        limit(300)
+      ));
 
-      const [snap1, snap2] = await Promise.all([getDocs(makeQ(termLower)), getDocs(makeQ(termCap))]);
+      const results = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(p =>
+          p.title?.toLowerCase().includes(termLower) ||
+          p.hashtags?.some(tag => tag.toLowerCase().includes(termLower))
+        )
+        .slice(0, 20);
 
-      const map = new Map();
-      [...snap1.docs, ...snap2.docs].forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
-      setPolls([...map.values()].slice(0, 15));
+      setPolls(results);
     } catch (err) {
       console.error('[QPe] Errore ricerca sondaggi:', err);
       setPolls([]);
@@ -167,13 +171,13 @@ function Search() {
       </div>
 
       {/* Contenuto */}
-      {trimmed.length < 2 ? (
+      {trimmed.length < 1 ? (
         <div className="search-hint">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.25 }}>
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <p>Digita almeno 2 caratteri per cercare</p>
+          <p>Cerca per {tab === 'polls' ? 'titolo o hashtag' : 'username'}</p>
         </div>
       ) : loading ? (
         <div className="search-skeleton-list">
@@ -190,7 +194,7 @@ function Search() {
       ) : noResults ? (
         <div className="search-empty">
           <p>Nessun risultato per <strong>"{trimmed}"</strong></p>
-          <span>Prova con un termine diverso — la ricerca funziona per prefisso</span>
+          <span>{tab === 'polls' ? 'Nessun sondaggio trovato per titolo o hashtag' : 'Prova con un termine diverso — la ricerca funziona per prefisso'}</span>
         </div>
       ) : tab === 'users' ? (
         <ul className="search-results">
