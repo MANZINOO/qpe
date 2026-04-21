@@ -11,7 +11,6 @@ Pianificazione temporale del progetto QPé suddivisa in 12 fasi.
 
 # Gantt del Progetto
 
-```mermaid
 gantt
     title QPé — Piano di Progetto 2026
     dateFormat  YYYY-MM-DD
