@@ -12,6 +12,8 @@
 
 > Progetto scolastico GPOI — Anno 2025/2026
 
+Prova su https://qpe-app.web.app
+
 ---
 
 ## Indice
