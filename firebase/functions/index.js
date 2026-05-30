@@ -1,4 +1,5 @@
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onCall, onRequest } = require('firebase-functions/v2/https');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -119,6 +120,69 @@ exports.moderateReply = onDocumentCreated(
     console.log(`[QPe Moderation] Risposta ${replyId} eliminata (contenuto inappropriato)`);
   }
 );
+
+// ── QPé Plus / Stripe ─────────────────────────────────────────────────────
+
+// Inizializzazione lazy: la chiave è disponibile solo a runtime sul cloud
+function getStripe() {
+  return require('stripe')(process.env.STRIPE_SECRET_KEY);
+}
+
+exports.createCheckoutSession = onCall({ cors: true }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new Error('Non autenticato');
+
+  const stripe = getStripe();
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    payment_method_types: ['card'],
+    line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+    metadata: { uid },
+    success_url: 'https://qpe-app.web.app/plus/success',
+    cancel_url: 'https://qpe-app.web.app/plus',
+  });
+
+  return { url: session.url };
+});
+
+exports.stripeWebhook = onRequest({ cors: true }, async (req, res) => {
+  const stripe = getStripe();
+  const sig = req.headers['stripe-signature'];
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.rawBody,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('[QPe Stripe] Webhook signature error:', err.message);
+    res.status(400).send(`Webhook Error: ${err.message}`);
+    return;
+  }
+
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const uid = session.metadata?.uid;
+    if (uid) {
+      await db.collection('users').doc(uid).update({
+        plus: true,
+        plusSince: FieldValue.serverTimestamp(),
+        stripeCustomerId: session.customer,
+      });
+      console.log(`[QPe Stripe] Plus attivato per ${uid}`);
+    }
+  } else if (event.type === 'customer.subscription.deleted') {
+    const customerId = event.data.object.customer;
+    const snap = await db.collection('users').where('stripeCustomerId', '==', customerId).get();
+    if (!snap.empty) {
+      await snap.docs[0].ref.update({ plus: false });
+      console.log(`[QPe Stripe] Plus disattivato per customer ${customerId}`);
+    }
+  }
+
+  res.json({ received: true });
+});
 
 exports.sendPushOnNotification = onDocumentCreated(
   'users/{userId}/notifications/{notifId}',

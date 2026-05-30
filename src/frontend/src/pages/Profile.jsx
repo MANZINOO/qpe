@@ -1,37 +1,41 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Link, useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db, storage } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { resizeImage } from '../utils/imageUtils';
 import './Auth.css';
+import './UserProfile.css';
 
 function Profile() {
   const { user, userProfile, logout, updateUserProfile } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const fileInputRef = useRef(null);
 
-  const [pollCount, setPollCount] = useState(0);
+  const [polls, setPolls] = useState([]);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
-    if (user?.uid) {
-      loadPollCount();
-    }
+    if (user?.uid) loadPolls();
   }, [user?.uid]);
 
-  async function loadPollCount() {
+  async function loadPolls() {
     try {
-      const q = query(collection(db, 'polls'), where('authorId', '==', user.uid));
+      const q = query(
+        collection(db, 'polls'),
+        where('authorId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
       const snap = await getDocs(q);
-      setPollCount(snap.size);
+      setPolls(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (err) {
-      console.warn('[QPe] Errore conteggio poll:', err.message);
+      console.warn('[QPe] Errore caricamento poll:', err.message);
     }
   }
 
@@ -124,10 +128,21 @@ function Profile() {
 
   return (
     <div className="profile-page page-enter">
+      {/* Header sticky con freccia indietro */}
+      <div className="profile-topbar">
+        <button className="profile-topbar-back" onClick={() => navigate(-1)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        <span className="profile-topbar-title">
+          @{displayName}
+          {userProfile?.plus && <span className="plus-badge" title="QPé Plus">⭐</span>}
+        </span>
+        <div style={{ width: 32 }} />
+      </div>
+
       <div className="profile-header">
-        <Link to="/" className="back-link">
-          Torna alla home
-        </Link>
 
         {/* Avatar cliccabile con overlay */}
         <div
@@ -181,7 +196,10 @@ function Profile() {
           onChange={handleFileChange}
         />
 
-        <h1 className="profile-username">@{displayName}</h1>
+        <h1 className="profile-username">
+          @{displayName}
+          {userProfile?.plus && <span className="plus-badge" title="QPé Plus">⭐</span>}
+        </h1>
         <p className="profile-email">{email}</p>
       </div>
 
@@ -189,7 +207,7 @@ function Profile() {
         <div className="profile-card">
           <div className="profile-stats">
             <div className="profile-stat">
-              <span className="profile-stat-number">{pollCount}</span>
+              <span className="profile-stat-number">{polls.length}</span>
               <span className="profile-stat-label">Sondaggi</span>
             </div>
             <div className="profile-stat">
@@ -230,7 +248,66 @@ function Profile() {
               Esci
             </button>
           </div>
+          {!userProfile?.plus && (
+            <Link to="/plus" className="btn-plus-upsell">
+              ⭐ Passa a QPé Plus
+            </Link>
+          )}
         </div>
+      </div>
+
+      {/* Sondaggi pubblicati */}
+      <div className="userprofile-polls-section">
+        <h2>I tuoi sondaggi</h2>
+        {polls.length === 0 ? (
+          <p className="userprofile-no-polls">Non hai ancora pubblicato sondaggi.</p>
+        ) : (
+          <div className="userprofile-polls-grid">
+            {polls.map(poll => {
+              const tags = poll.hashtags?.length > 0
+                ? poll.hashtags
+                : poll.category ? [poll.category.toLowerCase()] : [];
+              return (
+                <Link to={`/poll/${poll.id}`} key={poll.id} className="poll-card">
+                  <div className="poll-card-top" style={{ backgroundColor: poll.optionA?.color || '#333' }}>
+                    <span>{poll.optionA?.text}</span>
+                  </div>
+                  <div className="poll-card-line" />
+                  <div className="poll-card-bottom" style={{ backgroundColor: poll.optionB?.color || '#666' }}>
+                    <span>{poll.optionB?.text}</span>
+                  </div>
+                  <div className="poll-card-footer">
+                    <span className="poll-card-title">{poll.title}</span>
+                    {tags.length > 0 && (
+                      <div className="poll-card-tags">
+                        {tags.slice(0, 2).map(t => (
+                          <button
+                            key={t}
+                            className="poll-card-tag"
+                            onClick={e => { e.preventDefault(); navigate(`/?tag=${t}`); }}
+                          >
+                            #{t}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <div className="poll-card-meta">
+                      <span>{poll.totalVotes || 0} voti</span>
+                      <span>{poll.likesCount || 0} &#9829;</span>
+                      <span title="Visualizzazioni">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline', verticalAlign: 'middle', marginRight: 2 }}>
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        {poll.viewedBy?.length || 0}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

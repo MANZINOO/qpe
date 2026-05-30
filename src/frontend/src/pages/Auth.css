@@ -1,3 +1,27 @@
+/* Bottone upsell Plus nel profilo */
+.btn-plus-upsell {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  background: linear-gradient(135deg, #2a2200 0%, #1a1a1a 100%);
+  border: 1.5px solid #f5c84277 !important;
+  border-radius: var(--radius-lg);
+  color: #f5c842;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: -0.01em;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-plus-upsell:hover { border-color: #f5c842 !important; }
+.btn-plus-upsell:active,
+.btn-plus-upsell:visited { color: #f5c842; }
+
 /* Back link (usato in Profile, Settings, ecc.) */
 .back-link {
   display: inline-flex;
@@ -360,8 +384,50 @@
   width: 100%;
 }
 
+/* Header sticky con freccia — stile coerente con UserProfile/Settings */
+.profile-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 100;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+[data-theme="dark"] .profile-topbar { background: rgba(0,0,0,0.85); }
+[data-theme="light"] .profile-topbar { background: rgba(240,237,232,0.88); }
+
+.profile-topbar-back {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  margin-left: -6px;
+  border-radius: 50%;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.profile-topbar-back:hover { background: var(--bg-hover); }
+
+.profile-topbar-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
 .profile-header {
-  padding: 32px 24px 20px;
+  padding: 28px 24px 20px;
   text-align: center;
   border-bottom: 1px solid var(--border);
   position: relative;
@@ -369,7 +435,7 @@
 
 @media (max-width: 600px) {
   .profile-header {
-    padding: 24px 16px 16px;
+    padding: 20px 16px 16px;
   }
 }
 

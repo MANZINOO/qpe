@@ -1,7 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore } from 'firebase/firestore';
+import { initializeFirestore, memoryLocalCache } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getRemoteConfig } from 'firebase/remote-config';
+import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,18 +18,23 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// Prova ad abilitare la cache locale; se fallisce, usa Firestore standard
-let db;
-try {
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-  });
-  console.log('[QPe] Firestore inizializzato con cache locale');
-} catch (err) {
-  console.warn('[QPe] Cache locale non disponibile, uso Firestore standard:', err.message);
-  db = getFirestore(app);
-}
+// Cache in memoria: dati sempre freschi ad ogni sessione, niente dati stantii su mobile
+const db = initializeFirestore(app, {
+  localCache: memoryLocalCache()
+});
 
 export { db };
 export const googleProvider = new GoogleAuthProvider();
+
+// Remote Config — intervallo breve per demo (60s), in produzione usare 3600s
+export const remoteConfig = getRemoteConfig(app);
+remoteConfig.settings.minimumFetchIntervalMillis = 60_000;
+remoteConfig.defaultConfig = {
+  banned_uids: '[]',
+  banned_usernames: '[]',
+  max_polls_per_day: '3',
+};
+
+export const functions = getFunctions(app);
+
 export default app;

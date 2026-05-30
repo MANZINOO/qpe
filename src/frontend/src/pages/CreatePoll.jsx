@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { collection, doc, setDoc, updateDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { useRemoteConfig } from '../context/RemoteConfigContext';
+import { collection, doc, setDoc, updateDoc, onSnapshot, serverTimestamp, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { hasFullConsent, acceptAllCookies } from '../utils/cookieConsent';
@@ -31,6 +32,7 @@ function CreatePoll() {
   const { user, userProfile } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const { maxPollsPerDay } = useRemoteConfig();
 
   const [title, setTitle] = useState('');
   const [optionA, setOptionA] = useState('');
@@ -43,6 +45,15 @@ function CreatePoll() {
   const [previewB, setPreviewB] = useState(''); // data URL
   const fileInputA = useRef(null);
   const fileInputB = useRef(null);
+  const [coverImage, setCoverImage] = useState(null);
+  const [coverPreview, setCoverPreview] = useState('');
+  const fileInputCover = useRef(null);
+  const [posA, setPosA] = useState({ x: 50, y: 50 });
+  const [posB, setPosB] = useState({ x: 50, y: 50 });
+  const [zoomA, setZoomA] = useState(1.5);
+  const [zoomB, setZoomB] = useState(1.5);
+  const [posCover, setPosCover] = useState({ x: 50, y: 50 });
+  const [zoomCover, setZoomCover] = useState(1.5);
   const [hashtags, setHashtags] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -58,13 +69,52 @@ function CreatePoll() {
     const file = e.target.files?.[0];
     if (!file) return;
     const preview = URL.createObjectURL(file);
-    if (option === 'A') { setImageA(file); setPreviewA(preview); }
-    else { setImageB(file); setPreviewB(preview); }
+    if (option === 'A') { setImageA(file); setPreviewA(preview); setPosA({ x: 50, y: 50 }); setZoomA(1.5); }
+    else { setImageB(file); setPreviewB(preview); setPosB({ x: 50, y: 50 }); setZoomB(1.5); }
   }
 
   function removeImage(option) {
-    if (option === 'A') { setImageA(null); setPreviewA(''); if (fileInputA.current) fileInputA.current.value = ''; }
-    else { setImageB(null); setPreviewB(''); if (fileInputB.current) fileInputB.current.value = ''; }
+    if (option === 'A') { setImageA(null); setPreviewA(''); setPosA({ x: 50, y: 50 }); setZoomA(1.5); if (fileInputA.current) fileInputA.current.value = ''; }
+    else { setImageB(null); setPreviewB(''); setPosB({ x: 50, y: 50 }); setZoomB(1.5); if (fileInputB.current) fileInputB.current.value = ''; }
+  }
+
+  async function handleCoverPick(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverImage(file);
+    setCoverPreview(URL.createObjectURL(file));
+    setPosCover({ x: 50, y: 50 });
+    setZoomCover(1.5);
+  }
+
+  function removeCover() {
+    setCoverImage(null);
+    setCoverPreview('');
+    setPosCover({ x: 50, y: 50 });
+    setZoomCover(1.5);
+    if (fileInputCover.current) fileInputCover.current.value = '';
+  }
+
+  function startDrag(e, option) {
+    e.preventDefault();
+    const startX = e.clientX, startY = e.clientY;
+    const startPos = option === 'A' ? { ...posA } : option === 'B' ? { ...posB } : { ...posCover };
+
+    function onDrag(ev) {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      const newX = Math.max(0, Math.min(100, startPos.x - dx * 0.2));
+      const newY = Math.max(0, Math.min(100, startPos.y - dy * 0.2));
+      if (option === 'A') setPosA({ x: newX, y: newY });
+      else if (option === 'B') setPosB({ x: newX, y: newY });
+      else setPosCover({ x: newX, y: newY });
+    }
+    function stopDrag() {
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', stopDrag);
+    }
+    window.addEventListener('mousemove', onDrag);
+    window.addEventListener('mouseup', stopDrag);
   }
 
   async function uploadPollImage(file, pollId, option) {
@@ -81,6 +131,24 @@ function CreatePoll() {
       setError('Il tuo account è in modalità limitata. Non puoi creare sondaggi per ora.');
       return;
     }
+
+    // Controlla limite giornaliero da Remote Config (saltato per utenti Plus)
+    if (user && !userProfile?.plus) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todaySnap = await getDocs(
+        query(
+          collection(db, 'polls'),
+          where('authorId', '==', user.uid),
+          where('createdAt', '>=', Timestamp.fromDate(todayStart))
+        )
+      );
+      if (todaySnap.size >= maxPollsPerDay) {
+        setError(`Hai raggiunto il limite di ${maxPollsPerDay} sondaggi al giorno. Passa a QPé Plus per sondaggi illimitati!`);
+        return;
+      }
+    }
+
     if (!hasFullConsent()) {
       setCookieConsent(false);
       return;
@@ -109,6 +177,7 @@ function CreatePoll() {
         authorUsername: userProfile?.username || user.displayName || 'anonimo',
         authorAvatar: userProfile?.avatar || '',
         authorIsPrivate: userProfile?.isPrivate || false,
+        authorPlus: userProfile?.plus || false,
         voters: [],
         likes: [],
         likesCount: 0,
@@ -121,8 +190,28 @@ function CreatePoll() {
 
       // Upload immagini se presenti
       const imageUpdate = {};
-      if (imageA) imageUpdate['optionA.image'] = await uploadPollImage(imageA, newDocRef.id, 'A');
-      if (imageB) imageUpdate['optionB.image'] = await uploadPollImage(imageB, newDocRef.id, 'B');
+      if (imageA) {
+        imageUpdate['optionA.image'] = await uploadPollImage(imageA, newDocRef.id, 'A');
+        imageUpdate['optionA.imagePosX'] = Math.round(posA.x);
+        imageUpdate['optionA.imagePosY'] = Math.round(posA.y);
+        imageUpdate['optionA.imageZoom'] = Math.round(zoomA * 100) / 100;
+      }
+      if (imageB) {
+        imageUpdate['optionB.image'] = await uploadPollImage(imageB, newDocRef.id, 'B');
+        imageUpdate['optionB.imagePosX'] = Math.round(posB.x);
+        imageUpdate['optionB.imagePosY'] = Math.round(posB.y);
+        imageUpdate['optionB.imageZoom'] = Math.round(zoomB * 100) / 100;
+      }
+      if (coverImage) {
+        const compressed = await resizeImage(coverImage, 1200, 0.85);
+        const storageRef = ref(storage, `pollImages/${newDocRef.id}/cover.jpg`);
+        const task = uploadBytesResumable(storageRef, compressed, { contentType: 'image/jpeg' });
+        await new Promise((resolve, reject) => task.on('state_changed', null, reject, resolve));
+        imageUpdate['coverImage'] = await getDownloadURL(task.snapshot.ref);
+        imageUpdate['coverPosX'] = Math.round(posCover.x);
+        imageUpdate['coverPosY'] = Math.round(posCover.y);
+        imageUpdate['coverZoom'] = Math.round(zoomCover * 100) / 100;
+      }
       if (Object.keys(imageUpdate).length > 0) await updateDoc(newDocRef, imageUpdate);
 
       // Ascolta la moderazione automatica: max 8s, se il doc sparisce mostra errore
@@ -196,7 +285,7 @@ function CreatePoll() {
             </svg>
           </Link>
           <h1>Crea sondaggio</h1>
-          <div style={{ width: 32 }} />
+          <div className="create-poll-header-spacer" style={{ width: 32 }} />
         </div>
         <p className="create-poll-subtitle">Crea una coupé — due opzioni, una scelta.</p>
 
@@ -231,53 +320,13 @@ function CreatePoll() {
           </div>
         )}
 
-        {error && <div className="create-poll-error">{error}</div>}
+        {/* Layout: su desktop preview a destra, form a sinistra */}
+        <div className="create-poll-layout">
 
-        {/* Preview — identica alla coupé reale */}
-        <div className="poll-preview">
-          <div className="poll-preview-coupe">
-            <div className="poll-preview-half poll-preview-top" style={{
-              backgroundColor: colorA,
-              backgroundImage: previewA ? `url(${previewA})` : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}>
-              {previewA && <div className="poll-preview-overlay" />}
-              <span className="poll-preview-text">{optionA || 'OPZIONE A'}</span>
-            </div>
-
-            <div className="poll-preview-vs">
-              <span>VS</span>
-            </div>
-
-            <div className="poll-preview-half poll-preview-bottom" style={{
-              backgroundColor: colorB,
-              backgroundImage: previewB ? `url(${previewB})` : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}>
-              {previewB && <div className="poll-preview-overlay" />}
-              <span className="poll-preview-text">{optionB || 'OPZIONE B'}</span>
-            </div>
-          </div>
-
-          <div className="poll-preview-footer">
-            <div className="poll-preview-author">
-              <div className="poll-preview-avatar">
-                {(userProfile?.username || '?')[0].toUpperCase()}
-              </div>
-              <span>@{userProfile?.username || 'tu'}</span>
-            </div>
-            <p className="poll-preview-title">{title || 'Titolo del sondaggio'}</p>
-            <div className="poll-preview-stats">
-              <span>0 voti</span>
-              <span>0 ♥</span>
-              <span>👁 0</span>
-            </div>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="create-poll-form">
+          {/* Colonna form */}
+          <div className="create-poll-form-col">
+            {error && <div className="create-poll-error">{error}</div>}
+            <form onSubmit={handleSubmit} className="create-poll-form">
           <div className="form-field">
             <label>Domanda</label>
             <input
@@ -288,6 +337,56 @@ function CreatePoll() {
               maxLength={120}
             />
             <span className="char-count">{title.length}/120</span>
+          </div>
+
+          {/* Copertina */}
+          <div className="form-field">
+            <label>Copertina <span className="tag-count-hint">(opzionale)</span></label>
+            <input ref={fileInputCover} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleCoverPick} />
+            {coverPreview ? (
+              <div className="cover-editor">
+                {/* Anteprima card reale: cover + sfumatura + chip opzioni */}
+                <div
+                  className="cover-card-preview"
+                  style={{
+                    backgroundImage: `url(${coverPreview})`,
+                    backgroundPosition: `${posCover.x}% ${posCover.y}%`,
+                    backgroundSize: `${zoomCover * 100}%`,
+                    cursor: 'grab',
+                  }}
+                  onMouseDown={(e) => startDrag(e, 'cover')}
+                >
+                  <div className="cover-card-gradient" />
+                  <div className="cover-card-options">
+                    <div className="cover-card-opt" style={{ background: colorA }}>
+                      <span>{optionA || 'OPZIONE A'}</span>
+                    </div>
+                    <span className="cover-card-vs">vs</span>
+                    <div className="cover-card-opt" style={{ background: colorB }}>
+                      <span>{optionB || 'OPZIONE B'}</span>
+                    </div>
+                  </div>
+                  <div className="cover-drag-hint">&#8597; trascina</div>
+                </div>
+                <div className="image-adjust-row">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                  </svg>
+                  <input type="range" className="zoom-slider" min="0.5" max="5" step="0.05" value={zoomCover} onChange={e => setZoomCover(+e.target.value)} />
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                  </svg>
+                </div>
+                <button type="button" className="image-upload-remove" onClick={removeCover}>× rimuovi copertina</button>
+              </div>
+            ) : (
+              <button type="button" className="image-upload-btn" onClick={() => fileInputCover.current?.click()}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Aggiungi copertina
+              </button>
+            )}
           </div>
 
           {/* Option A */}
@@ -328,6 +427,19 @@ function CreatePoll() {
                 </button>
               )}
             </div>
+            {previewA && (
+              <div className="image-adjust-row" style={{ marginTop: 8 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+                <input type="range" className="zoom-slider" min="0.5" max="5" step="0.05" value={zoomA} onChange={e => setZoomA(+e.target.value)} />
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+              </div>
+            )}
           </div>
 
           {/* Option B */}
@@ -368,6 +480,19 @@ function CreatePoll() {
                 </button>
               )}
             </div>
+            {previewB && (
+              <div className="image-adjust-row" style={{ marginTop: 8 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+                <input type="range" className="zoom-slider" min="0.5" max="5" step="0.05" value={zoomB} onChange={e => setZoomB(+e.target.value)} />
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+              </div>
+            )}
           </div>
 
           {/* Hashtag */}
@@ -407,6 +532,86 @@ function CreatePoll() {
             {loading ? 'Pubblicazione...' : !cookieConsent ? '🔒 Accetta i cookie per pubblicare' : 'Pubblica sondaggio'}
           </button>
         </form>
+          </div>{/* fine .create-poll-form-col */}
+
+          {/* Colonna preview (sticky su desktop) */}
+          <div className="create-poll-preview-col">
+            <div className="poll-preview">
+              {coverPreview ? (
+                /* Preview con copertina: layout hero identico alla feed card */
+                <div
+                  className="poll-preview-cover-hero"
+                  style={{
+                    backgroundImage: `url(${coverPreview})`,
+                    backgroundPosition: `${posCover.x}% ${posCover.y}%`,
+                    backgroundSize: `${zoomCover * 100}%`,
+                  }}
+                >
+                  <div className="cover-card-gradient" />
+                  <div className="cover-card-options">
+                    <div className="cover-card-opt" style={{ background: colorA }}>
+                      <span>{optionA || 'OPZIONE A'}</span>
+                    </div>
+                    <span className="cover-card-vs">vs</span>
+                    <div className="cover-card-opt" style={{ background: colorB }}>
+                      <span>{optionB || 'OPZIONE B'}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Preview standard: due metà */
+                <div className="poll-preview-coupe">
+                  <div
+                    className="poll-preview-half poll-preview-top"
+                    style={{
+                      backgroundColor: colorA,
+                      backgroundImage: previewA ? `url(${previewA})` : undefined,
+                      backgroundSize: previewA ? `${zoomA * 100}%` : undefined,
+                      backgroundPosition: `${posA.x}% ${posA.y}%`,
+                      cursor: previewA ? 'grab' : 'default',
+                    }}
+                    onMouseDown={previewA ? (e) => startDrag(e, 'A') : undefined}
+                  >
+                    {previewA && <div className="poll-preview-overlay" />}
+                    {previewA && <div className="drag-hint">&#8597; trascina</div>}
+                    <span className="poll-preview-text">{optionA || 'OPZIONE A'}</span>
+                  </div>
+                  <div className="poll-preview-vs"><span>VS</span></div>
+                  <div
+                    className="poll-preview-half poll-preview-bottom"
+                    style={{
+                      backgroundColor: colorB,
+                      backgroundImage: previewB ? `url(${previewB})` : undefined,
+                      backgroundSize: previewB ? `${zoomB * 100}%` : undefined,
+                      backgroundPosition: `${posB.x}% ${posB.y}%`,
+                      cursor: previewB ? 'grab' : 'default',
+                    }}
+                    onMouseDown={previewB ? (e) => startDrag(e, 'B') : undefined}
+                  >
+                    {previewB && <div className="poll-preview-overlay" />}
+                    {previewB && <div className="drag-hint">&#8597; trascina</div>}
+                    <span className="poll-preview-text">{optionB || 'OPZIONE B'}</span>
+                  </div>
+                </div>
+              )}
+              <div className="poll-preview-footer">
+                <div className="poll-preview-author">
+                  <div className="poll-preview-avatar">
+                    {(userProfile?.username || '?')[0].toUpperCase()}
+                  </div>
+                  <span>@{userProfile?.username || 'tu'}</span>
+                </div>
+                <p className="poll-preview-title">{title || 'Titolo del sondaggio'}</p>
+                <div className="poll-preview-stats">
+                  <span>0 voti</span>
+                  <span>0 ♥</span>
+                  <span>👁 0</span>
+                </div>
+              </div>
+            </div>
+          </div>{/* fine .create-poll-preview-col */}
+
+        </div>{/* fine .create-poll-layout */}
       </div>
     </div>
   );

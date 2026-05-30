@@ -11,9 +11,35 @@ import { resizeImage } from '../utils/imageUtils';
 import CookiePreferencesManager from '../components/CookiePreferencesManager';
 import './Settings.css';
 
+function LegalSection() {
+  const [showCookiePrefs, setShowCookiePrefs] = useState(false);
+  return (
+    <div className="settings-legal">
+      <div className="settings-legal-links">
+        <Link to="/privacy-policy" className="settings-legal-link">Privacy Policy</Link>
+        <span className="settings-legal-dot" />
+        <Link to="/cookie-policy" className="settings-legal-link">Cookie Policy</Link>
+        <span className="settings-legal-dot" />
+        <button className="settings-legal-link settings-legal-btn" onClick={() => setShowCookiePrefs(true)}>
+          Preferenze cookie
+        </button>
+      </div>
+      <p className="settings-legal-copy">QPe 2026 · Progetto GPOI</p>
+
+      {showCookiePrefs && (
+        <div className="cookie-prefs-modal-overlay" onClick={() => setShowCookiePrefs(false)}>
+          <div className="cookie-prefs-modal" onClick={e => e.stopPropagation()}>
+            <CookiePreferencesManager onClose={() => setShowCookiePrefs(false)} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Settings() {
   const { user, userProfile, updateUserProfile, enablePushNotifications } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme, themePref, setTheme } = useTheme();
   const toast = useToast();
   const fileInputRef = useRef(null);
 
@@ -555,10 +581,6 @@ function Settings() {
                 style={{ marginBottom: 20 }}>
                 {savingPrivacy ? 'Salvataggio...' : 'Salva impostazioni privacy'}
               </button>
-              <div className="privacy-block">
-                <h3>Preferenze cookie</h3>
-                <CookiePreferencesManager />
-              </div>
               <div className="privacy-block gdpr-section">
                 <h3>I miei dati (GDPR)</h3>
                 <p className="gdpr-note">
@@ -598,6 +620,8 @@ function Settings() {
                   </div>
                 </div>
               </div>
+
+              <LegalSection />
             </div>
           )}
 
@@ -634,7 +658,7 @@ function Settings() {
                 <label>Tema</label>
                 <div className="theme-selector">
                   <button
-                    className={`theme-option ${theme === 'light' ? 'active' : ''}`}
+                    className={`theme-option ${themePref === 'light' ? 'active' : ''}`}
                     onClick={() => { setTheme('light'); toast.info('Tema chiaro attivato'); }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -647,7 +671,7 @@ function Settings() {
                     Chiaro
                   </button>
                   <button
-                    className={`theme-option ${theme === 'dark' ? 'active' : ''}`}
+                    className={`theme-option ${themePref === 'dark' ? 'active' : ''}`}
                     onClick={() => { setTheme('dark'); toast.info('Tema scuro attivato'); }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -655,8 +679,36 @@ function Settings() {
                     </svg>
                     Scuro
                   </button>
+                  <button
+                    className={`theme-option ${themePref === 'system' ? 'active' : ''}`}
+                    onClick={() => { setTheme('system'); toast.info('Tema dispositivo attivato'); }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                      <line x1="8" y1="21" x2="16" y2="21" />
+                      <line x1="12" y1="17" x2="12" y2="21" />
+                    </svg>
+                    Sistema
+                  </button>
                 </div>
               </div>
+
+              {/* QPé Plus — in fondo alla sezione */}
+              {!userProfile?.plus ? (
+                <Link to="/plus" className="settings-plus-banner">
+                  <span>⭐</span>
+                  <div>
+                    <strong>QPé Plus</strong>
+                    <span>Sondaggi illimitati · Badge esclusivo · €3/mese</span>
+                  </div>
+                  <span className="settings-plus-banner-arrow">›</span>
+                </Link>
+              ) : (
+                <div className="settings-plus-active">
+                  <span>⭐</span>
+                  <span>Sei un membro QPé Plus</span>
+                </div>
+              )}
             </div>
           )}
 

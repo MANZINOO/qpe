@@ -51,10 +51,25 @@ function FeedSkeleton() {
   );
 }
 
+// Gestione sondaggi visualizzati (localStorage)
+function getViewedPolls() {
+  try { return new Set(JSON.parse(localStorage.getItem('qpe-viewed-polls') || '[]')); }
+  catch { return new Set(); }
+}
+function markPollViewed(id) {
+  try {
+    const viewed = getViewedPolls();
+    viewed.add(id);
+    const arr = [...viewed].slice(-300); // tieni solo gli ultimi 300
+    localStorage.setItem('qpe-viewed-polls', JSON.stringify(arr));
+  } catch {}
+}
+
 function Home() {
   const { user, userProfile, loading: authLoading } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [viewedPolls, setViewedPolls] = useState(() => getViewedPolls());
 
   // Tab attivo: 'tutti' | 'seguiti' | 'tendenze'
   const [tab, setTab] = useState('tutti');
@@ -300,33 +315,12 @@ function Home() {
           {!authLoading && (
             user ? (
               <>
-                <Link to="/reel" className="header-icon-btn" title="Reel">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18" />
-                    <line x1="7" y1="2" x2="7" y2="22" />
-                    <line x1="17" y1="2" x2="17" y2="22" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <line x1="2" y1="7" x2="7" y2="7" />
-                    <line x1="2" y1="17" x2="7" y2="17" />
-                    <line x1="17" y1="17" x2="22" y2="17" />
-                    <line x1="17" y1="7" x2="22" y2="7" />
-                  </svg>
-                </Link>
                 <Link to="/search" className="header-search-btn header-icon-btn" title="Cerca">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="8" />
                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
                 </Link>
-                <Link to="/messages" className="header-messages header-icon-btn" title="Messaggi">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                  {unreadMessages > 0 && (
-                    <span className="header-notif-badge">{unreadMessages > 9 ? '9+' : unreadMessages}</span>
-                  )}
-                </Link>
-
                 <Link to="/notifications" className="header-notif header-icon-btn" title="Notifiche">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -334,6 +328,22 @@ function Home() {
                   </svg>
                   {unreadNotifs > 0 && (
                     <span className="header-notif-badge">{unreadNotifs > 9 ? '9+' : unreadNotifs}</span>
+                  )}
+                </Link>
+
+                <Link to="/settings" className="header-settings-btn header-icon-btn" title="Impostazioni">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                </Link>
+
+                <Link to="/messages" className="header-messages header-icon-btn" title="Messaggi">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  {unreadMessages > 0 && (
+                    <span className="header-notif-badge">{unreadMessages > 9 ? '9+' : unreadMessages}</span>
                   )}
                 </Link>
                 <Link to="/profile" className="header-avatar-link">
@@ -358,15 +368,28 @@ function Home() {
         {user && (
           <>
             <button className={`feed-tab ${activeTab === 'tutti' && !activeTag ? 'active' : ''}`} onClick={() => handleTabChange('tutti')}>
-              Per te
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feed-tab-icon">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              <span className="feed-tab-label">Per te</span>
             </button>
             <button className={`feed-tab ${activeTab === 'seguiti' && !activeTag ? 'active' : ''}`} onClick={() => handleTabChange('seguiti')}>
-              Seguiti
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feed-tab-icon">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+              <span className="feed-tab-label">Seguiti</span>
             </button>
           </>
         )}
         <button className={`feed-tab ${activeTab === 'tendenze' && !activeTag ? 'active' : ''}`} onClick={() => handleTabChange('tendenze')}>
-          Tendenze
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feed-tab-icon">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="16 7 22 7 22 13"/>
+          </svg>
+          <span className="feed-tab-label">Tendenze</span>
         </button>
       </div>
 
@@ -439,32 +462,74 @@ function Home() {
               const tags = getPollTags(poll);
               const pollIds = polls.map(p => p.id);
               return (
+                <div
+                  key={poll.id}
+                  className={`poll-card-wrap${
+                    poll.voters?.some(v => v.uid === user?.uid) ? ' poll-card--voted'
+                    : poll.authorId === user?.uid ? ' poll-card--own'
+                    : ''
+                  }`}
+                >
                 <Link
                   to={`/poll/${poll.id}`}
                   state={{ pollIds, currentIndex: index }}
-                  key={poll.id}
                   className="poll-card stagger-item"
                   style={{ animationDelay: `${Math.min(index * 0.04, 0.4)}s` }}
+                  onClick={() => {
+                    markPollViewed(poll.id);
+                    setViewedPolls(getViewedPolls());
+                  }}
                 >
-                  <div className="poll-card-top" style={{
-                    backgroundColor: poll.optionA?.color || '#333',
-                    ...(poll.optionA?.image && { backgroundImage: `url(${poll.optionA.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
-                  }}>
-                    {poll.optionA?.image && <div className="poll-card-img-overlay" />}
-                    <span>{poll.optionA?.text}</span>
-                  </div>
-                  <div className="poll-card-line" />
-                  <div className="poll-card-bottom" style={{
-                    backgroundColor: poll.optionB?.color || '#666',
-                    ...(poll.optionB?.image && { backgroundImage: `url(${poll.optionB.image})`, backgroundSize: 'cover', backgroundPosition: 'center' })
-                  }}>
-                    {poll.optionB?.image && <div className="poll-card-img-overlay" />}
-                    <span>{poll.optionB?.text}</span>
-                  </div>
+                  {poll.coverImage ? (
+                    /* ── Cover-hero layout ── */
+                    <div className="poll-card-cover-hero" style={{
+                      backgroundImage: `url(${poll.coverImage})`,
+                      backgroundPosition: `${poll.coverPosX ?? 50}% ${poll.coverPosY ?? 50}%`,
+                      backgroundSize: poll.coverZoom ? `${poll.coverZoom * 100}%` : 'cover',
+                    }}>
+                      <div className="poll-card-cover-gradient" />
+                      <div className="poll-card-cover-options">
+                        <div className="poll-card-cover-opt" style={{ background: poll.optionA?.color || '#333' }}>
+                          <span>{poll.optionA?.text}</span>
+                        </div>
+                        <span className="poll-card-cover-vs">vs</span>
+                        <div className="poll-card-cover-opt" style={{ background: poll.optionB?.color || '#666' }}>
+                          <span>{poll.optionB?.text}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* ── Standard coupe layout ── */
+                    <>
+                      <div className="poll-card-top" style={{
+                        backgroundColor: poll.optionA?.color || '#333',
+                        ...(poll.optionA?.image && { backgroundImage: `url(${poll.optionA.image})`, backgroundSize: poll.optionA.imageZoom ? `${poll.optionA.imageZoom * 100}%` : 'cover', backgroundPosition: `${poll.optionA.imagePosX ?? 50}% ${poll.optionA.imagePosY ?? 50}%` })
+                      }}>
+                        {poll.optionA?.image && <div className="poll-card-img-overlay" />}
+                        <span>{poll.optionA?.text}</span>
+                      </div>
+                      <div className="poll-card-line" />
+                      <div className="poll-card-bottom" style={{
+                        backgroundColor: poll.optionB?.color || '#666',
+                        ...(poll.optionB?.image && { backgroundImage: `url(${poll.optionB.image})`, backgroundSize: poll.optionB.imageZoom ? `${poll.optionB.imageZoom * 100}%` : 'cover', backgroundPosition: `${poll.optionB.imagePosX ?? 50}% ${poll.optionB.imagePosY ?? 50}%` })
+                      }}>
+                        {poll.optionB?.image && <div className="poll-card-img-overlay" />}
+                        <span>{poll.optionB?.text}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="poll-card-footer">
                     <div className="poll-card-user">
-                      <div className="poll-card-avatar">{(poll.authorUsername || '?')[0].toUpperCase()}</div>
-                      <span className="poll-card-author">{poll.authorUsername}</span>
+                      <div className="poll-card-avatar">
+                        {poll.authorAvatar
+                          ? <img src={poll.authorAvatar} alt="" style={{width:'100%',height:'100%',objectFit:'cover',borderRadius:'50%'}} />
+                          : (poll.authorUsername || '?')[0].toUpperCase()
+                        }
+                      </div>
+                      <span className="poll-card-author">
+                        {poll.authorUsername}
+                        {poll.authorPlus && <span className="plus-badge" title="QPé Plus">⭐</span>}
+                      </span>
                     </div>
                     <span className="poll-card-title">{poll.title}</span>
                     {tags.length > 0 && (
@@ -496,6 +561,7 @@ function Home() {
                     </div>
                   </div>
                 </Link>
+                </div>
               );
             })}
           </div>

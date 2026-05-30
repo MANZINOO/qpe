@@ -1,4 +1,12 @@
 /* qpe - App shell */
+
+/* QPé Plus badge — usato in Profile, UserProfile e feed card */
+.plus-badge {
+  font-size: 0.85em;
+  margin-left: 4px;
+  vertical-align: middle;
+  line-height: 1;
+}
 .app {
   min-height: 100vh;
   display: flex;
@@ -7,4 +15,21 @@
   width: 100%;
   position: relative;
   transition: background-color 0.25s ease;
+}
+
+/* Desktop: lascia spazio alla sidebar (collapsed = 72px) */
+@media (min-width: 769px) {
+  :root {
+    --sidebar-w: 72px;
+  }
+
+  .app {
+    padding-left: var(--sidebar-w);
+    transition: padding-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Quando la sidebar è in hover si espande a 260px → il contenuto si stringe */
+  .app:has(.sidebar:hover) {
+    --sidebar-w: 260px;
+  }
 }
