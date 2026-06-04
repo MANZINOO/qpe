@@ -17,6 +17,11 @@
   transition: background-color 0.25s ease;
 }
 
+/* Landing page — nessun padding sidebar, nessuna barra */
+.app--landing {
+  padding-left: 0 !important;
+}
+
 /* Desktop: lascia spazio alla sidebar (collapsed = 72px) */
 @media (min-width: 769px) {
   :root {

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider, useToast } from './context/ToastContext';
@@ -60,7 +60,52 @@ import ReelView from './pages/ReelView';
 import Advertise from './pages/Advertise';
 import Plus from './pages/Plus';
 import PlusSuccess from './pages/PlusSuccess';
+import Landing from './pages/Landing';
 import './App.css';
+
+// Mostra Home o Landing in base allo stato di login
+function HomeOrLanding() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return user ? <Home /> : <Landing />;
+}
+
+// Shell dell'app: nasconde Sidebar e BottomNav sulla landing
+function AppShell() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const isLanding = location.pathname === '/' && !user && !loading;
+
+  return (
+    <BanGuard>
+      <div className={`app${isLanding ? ' app--landing' : ''}`}>
+        {!isLanding && <Sidebar />}
+        <Routes>
+          <Route path="/" element={<HomeOrLanding />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/cookie-policy" element={<CookiePolicy />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/create" element={<CreatePoll />} />
+          <Route path="/poll/:id" element={<PollView />} />
+          <Route path="/u/:uid" element={<UserProfile />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/search" element={<Search />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/messages/:convId" element={<Chat />} />
+          <Route path="/reel" element={<ReelView />} />
+          <Route path="/advertise" element={<Advertise />} />
+          <Route path="/plus" element={<Plus />} />
+          <Route path="/plus/success" element={<PlusSuccess />} />
+        </Routes>
+        {!isLanding && <BottomNav />}
+        <CookieBanner />
+      </div>
+    </BanGuard>
+  );
+}
 
 function App() {
   useEffect(() => {
@@ -74,33 +119,7 @@ function App() {
           <AuthProvider>
             <ToastProvider>
               <FcmForegroundHandler />
-              <BanGuard>
-                <div className="app">
-                  <Sidebar />
-                  <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                    <Route path="/cookie-policy" element={<CookiePolicy />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/create" element={<CreatePoll />} />
-                    <Route path="/poll/:id" element={<PollView />} />
-                    <Route path="/u/:uid" element={<UserProfile />} />
-                    <Route path="/notifications" element={<Notifications />} />
-                    <Route path="/search" element={<Search />} />
-                    <Route path="/messages" element={<Messages />} />
-                    <Route path="/messages/:convId" element={<Chat />} />
-                    <Route path="/reel" element={<ReelView />} />
-                    <Route path="/advertise" element={<Advertise />} />
-                    <Route path="/plus" element={<Plus />} />
-                    <Route path="/plus/success" element={<PlusSuccess />} />
-                  </Routes>
-                  <BottomNav />
-                  <CookieBanner />
-                </div>
-              </BanGuard>
+              <AppShell />
             </ToastProvider>
           </AuthProvider>
         </RemoteConfigProvider>
