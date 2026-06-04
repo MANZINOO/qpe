@@ -11,6 +11,37 @@ e il progetto adotta il [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [0.7.0] - 04-06-2026
+
+### Aggiunto
+
+- **QPé Plus** — abbonamento mensile da €3/mese tramite Stripe Checkout (modalità subscription)
+  - Firebase Function `createCheckoutSession` (callable v2): crea sessione Stripe con `metadata: { uid }`
+  - Firebase Function `stripeWebhook` (HTTP v2): riceve eventi Stripe e aggiorna Firestore (`plus: true/false`, `plusSince`, `stripeCustomerId`)
+  - Pagina `/plus` con features list, price card e bottone "Abbonati"
+  - Pagina `/plus/success` con conferma abbonamento attivato
+  - Badge ⭐ accanto all'username su profilo proprio, profilo altrui e card del feed
+  - Campo `authorPlus` denormalizzato sui poll per badge nel feed senza letture extra
+  - Sondaggi illimitati al giorno per utenti Plus (salta il check `max_polls_per_day`)
+  - Bottone "⭐ Passa a QPé Plus" nella pagina Profilo
+  - Banner Plus nella sezione Account delle Impostazioni
+- **Landing page** (`/`) per utenti non autenticati
+  - Hero fullscreen con headline bold e gradient viola-rosa
+  - Phone mockup animato con poll cards dimostrative
+  - Strip statistiche (100% Gratuito, 2 Opzioni, ∞ Voti)
+  - Sezioni feature "Feed" e "Crea" con mock UI
+  - Sezione QPé Plus e final CTA
+  - Sidebar e BottomNav nascosti sulla landing
+  - Utenti loggati vedono il feed normale su `/`
+
+### Modificato
+
+- `firebase.js`: aggiunto export `functions` tramite `getFunctions`
+- `CreatePoll.jsx`: limite giornaliero saltato se `userProfile.plus === true`; messaggio errore aggiornato con link a Plus
+- `App.jsx`: routing `/` condizionale (Landing vs Home); classe `app--landing` per rimuovere padding sidebar
+
+---
+
 ## [0.6.0] - 14-04-2026
 
 ### Aggiunto
